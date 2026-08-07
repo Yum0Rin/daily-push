@@ -31,7 +31,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Install NeteaseCloudMusicApi
-        run: npm install --omit=dev
+        run: npm install --omit=dev --registry=https://registry.npmmirror.com || npm install --omit=dev
 
       - name: Generate cloud config from secrets
         env:
