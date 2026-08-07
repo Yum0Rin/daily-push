@@ -32,6 +32,36 @@ function esc(s) {
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+function errMessage(kind, raw) {
+  const r = String(raw || "");
+  const credential = /cookie|sessdata|not configured|login|401|403|expired|失效|过期/i.test(r);
+  const conn = /cannot reach|connect|refused|timeout|ECONN|网络|unable to determine/i.test(r);
+  if (kind === "mp") {
+    if (credential) return "微信公众号登录凭证可能已失效，请更新后重新采集。";
+    if (conn) return "微信数据源暂时无法连接，请稍后再试。";
+    return "公众号推文获取失败，请稍后重试。";
+  }
+  if (kind === "netease") {
+    if (credential) return "网易云登录凭证可能已失效，请更新 Cookie 后重新采集。";
+    if (conn) return "网易云服务暂时无法连接，请稍后再试。";
+    return "网易云推荐获取失败，请稍后重试。";
+  }
+  if (kind === "bilibili") {
+    if (credential) return "B站登录凭证可能已失效，请更新 sessdata 后重新采集。";
+    if (conn) return "B站接口暂时无法连接，请稍后再试。";
+    return "B站动态获取失败，请稍后重试。";
+  }
+  return "数据获取失败，请稍后重试。";
+}
+
+function errBlock(kind, raw) {
+  return `<div class="module-err">
+    <div class="module-err-title">⚠️ 该模块暂时无法加载</div>
+    <div class="module-err-desc">${esc(errMessage(kind, raw))}</div>
+    ${raw ? `<div class="module-err-raw">${esc(raw)}</div>` : ""}
+  </div>`;
+}
+
 function fmtCreated(ts) {
   const sec = Number(ts);
   if (!sec) return "";
@@ -70,9 +100,13 @@ function renderGroups(el, groups) {
 }
 
 function renderMusic(data) {
-  const ok = Array.isArray(data) && data.length > 0;
-  els.cardMusic.style.display = ok ? "" : "none";
-  els.songs.innerHTML = ok
+  const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
+  els.cardMusic.style.display = (isErr || (Array.isArray(data) && data.length > 0)) ? "" : "none";
+  if (isErr) {
+    els.songs.innerHTML = errBlock("netease", data.error);
+    return;
+  }
+  els.songs.innerHTML = Array.isArray(data)
     ? data.map((s) => `
         <li>
           <span class="rank"></span>
@@ -88,9 +122,13 @@ function renderMusic(data) {
 }
 
 function renderBili(data) {
-  const ok = Array.isArray(data) && data.length > 0;
-  els.cardBili.style.display = ok ? "" : "none";
-  if (!ok) {
+  const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
+  els.cardBili.style.display = (isErr || (Array.isArray(data) && data.length > 0)) ? "" : "none";
+  if (isErr) {
+    els.ups.innerHTML = errBlock("bilibili", data.error);
+    return;
+  }
+  if (!Array.isArray(data)) {
     els.ups.innerHTML = "";
     return;
   }
@@ -108,9 +146,13 @@ function renderBili(data) {
 }
 
 function renderArticles(data) {
-  const ok = Array.isArray(data) && data.length > 0;
-  els.cardMp.style.display = ok ? "" : "none";
-  if (!ok) {
+  const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
+  els.cardMp.style.display = (isErr || (Array.isArray(data) && data.length > 0)) ? "" : "none";
+  if (isErr) {
+    els.mpList.innerHTML = errBlock("mp", data.error);
+    return;
+  }
+  if (!Array.isArray(data)) {
     els.mpList.innerHTML = "";
     return;
   }
@@ -129,16 +171,13 @@ function renderArticles(data) {
 }
 
 function render(data) {
-  els.cardMusic.style.display = (data.netease && Array.isArray(data.netease)) ? "" : "none";
-  els.cardBili.style.display = (data.bilibili && Array.isArray(data.bilibili)) ? "" : "none";
-
   renderMusic(data.netease);
   renderBili(data.bilibili);
   renderArticles(data.mp);
 
-  const any = (Array.isArray(data.netease) && data.netease.length) ||
-    (Array.isArray(data.bilibili) && data.bilibili.length) ||
-    (Array.isArray(data.mp) && data.mp.length);
+  const hasData = (x) => (Array.isArray(x) && x.length) ||
+    (x && typeof x === "object" && !Array.isArray(x) && x.error);
+  const any = hasData(data.netease) || hasData(data.bilibili) || hasData(data.mp);
   els.emptyState.style.display = any ? "none" : "";
 
   renderSummary(data);
@@ -338,16 +377,61 @@ async function init() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   });
 
+  const THEME_LOCATION = { lat: 39.9, lon: 116.4, tz: 8 };
+  const THEME_AUTO = "auto";
+
+  function sunTimes(date, lat, lon, tz) {
+    const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+    const N1 = Math.floor(275 * m / 9);
+    const N2 = Math.floor((m + 9) / 12);
+    const N3 = (1 + Math.floor((y - 4 * Math.floor(y / 4) + 2) / 3));
+    const N = N1 - (N2 * N3) + d - 30;
+    const lngHour = lon / 15;
+    const zenith = 90.833;
+    const d2r = Math.PI / 180;
+    const solve = (kind) => {
+      const t = N + ((kind === "rise" ? 6 : 18) - lngHour) / 24;
+      const M = (0.9856 * t) - 3.289;
+      const L = M + (1.916 * Math.sin(M * d2r)) + (0.020 * Math.sin(2 * M * d2r)) + 282.634;
+      let RA = Math.atan(0.91764 * Math.tan(L * d2r)) / d2r;
+      RA += Math.floor(L / 90) * 90 - Math.floor(RA / 90) * 90;
+      RA = RA / 15;
+      const sinDec = 0.39782 * Math.sin(L * d2r);
+      const cosDec = Math.cos(Math.asin(sinDec));
+      let cosH = (Math.cos(zenith * d2r) - sinDec * Math.sin(lat * d2r))
+        / (cosDec * Math.cos(lat * d2r));
+      cosH = Math.max(-1, Math.min(1, cosH));
+      let H = Math.acos(cosH) / d2r;
+      if (kind === "rise") H = 360 - H;
+      H = H / 15;
+      const local = (H + RA - 0.06571 * t - 6.622 - lngHour + tz) % 24;
+      const h = Math.floor(local);
+      const mi = Math.round((local - h) * 60);
+      const dateMs = new Date(y, m - 1, d, h, mi).getTime();
+      return new Date(dateMs);
+    };
+    return { rise: solve("rise"), set: solve("set") };
+  }
+
+  function autoTheme() {
+    const now = new Date();
+    const { rise, set } = sunTimes(now, THEME_LOCATION.lat, THEME_LOCATION.lon, THEME_LOCATION.tz);
+    return now >= rise && now < set ? "light" : "dark";
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    themeBtn.textContent = theme === "dark" ? "🌙" : "☀️";
+  }
+
   const themeBtn = $("themeToggle");
   themeBtn.addEventListener("click", () => {
     const next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", next);
+    applyTheme(next);
     localStorage.setItem("theme", next);
-    themeBtn.textContent = next === "dark" ? "🌙" : "☀️";
   });
-  const savedTheme = localStorage.getItem("theme") || "dark";
-  document.documentElement.setAttribute("data-theme", savedTheme);
-  themeBtn.textContent = savedTheme === "dark" ? "🌙" : "☀️";
+  const savedTheme = localStorage.getItem("theme");
+  applyTheme(savedTheme === null || savedTheme === THEME_AUTO ? autoTheme() : savedTheme);
 
   await loadDay(currentDate);
 }

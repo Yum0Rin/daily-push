@@ -123,7 +123,7 @@ class BiliCollector:
                 bvid = archive.get("bvid")
                 name = author.get("name", "")
                 created = int(author.get("pub_ts") or 0)
-                if not bvid or name in self.exclude or bvid in seen_bvid:
+                if not bvid or any(k in name for k in self.exclude) or bvid in seen_bvid:
                     continue
                 if created < cutoff:
                     continue

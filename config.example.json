@@ -21,7 +21,7 @@
     "cookie": "web_session=<你的Cookie>",
     "limit": 5
   },
-  "push_time": "08:30",
+  "push_time": "07:30",
   "max_songs": 5,
   "port": 5000,
   "data_dir": "data",

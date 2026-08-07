@@ -62,6 +62,8 @@ def collect_once(config_path=None, netease=True, bilibili=True):
             result["mp"] = WeChatArticleCollector(cfg).collect()
         except Exception as e:
             result["mp"] = {"error": str(e)}
+    else:
+        result["mp"] = {"error": "当前环境无法获取微信公众号数据（缺少微信解密环境）"}
 
     # 跨天去重：记录每天最后一次采集时间；次日只推「该时间之后」的新内容
     cutoffs = _load_cutoffs(storage_dir)

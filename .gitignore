@@ -5,6 +5,9 @@ config.json
 # 采集存储（含个人/群消息内容）
 data/
 
+# 导出的静态站点（由 export_site.py 生成，单独 push 到 Pages）
+site/
+
 # 运行日志（可能含 URL/路径等细节）
 *.log
 

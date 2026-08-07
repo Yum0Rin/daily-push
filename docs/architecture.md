@@ -43,4 +43,4 @@ collect_once():
 
 - `--no-collect`：只启动服务，不做首次采集。
 - 端口冲突检测 `_port_open()` 去重，避免重复拉起网易云API。
-- 每日定时：`push_time`（默认 08:30），独立 daemon 线程，作为开机采集的兜底。
+- 每日定时：`push_time`（默认 07:30），独立 daemon 线程，作为开机采集的兜底。

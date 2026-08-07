@@ -194,7 +194,7 @@ def main():
     from daily_push.app import create_app
     cfg = load_config()
     port = int(cfg.get("port", 5000))
-    push_time = cfg.get("push_time", "08:30")
+    push_time = cfg.get("push_time", "07:30")
 
     thread = threading.Thread(target=scheduler_thread, args=(push_time,), daemon=True)
     thread.start()

@@ -25,7 +25,7 @@ main:
   初始化时给 `#ups` 加上 `articles` class 以复用样式。
 - `renderMusic`：歌手/专辑下一行展示热评（`s.hot_comment`，双引号包裹）。
 - summary 点击：手动计算 `scrollTo`（卡片顶部对齐到吸顶标题栏下方），保证卡片标题可见。
-- 采集：无手动按钮，每日开机自动采集（另有 08:30 兜底定时），刷新页面即可看到。
+- 采集：无手动按钮，每日开机自动采集（另有 07:30 兜底定时），刷新页面即可看到。
 - 主题：`data-theme=dark/light`，持久化到 `localStorage.theme`。
 - 日期：`datePicker` + 前后切换；`loadDay` 请求 `/api/day/<date>`。
 - 渲染时全部经 `esc()` 转义（防 XSS）。
