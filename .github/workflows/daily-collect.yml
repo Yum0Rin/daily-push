@@ -50,15 +50,7 @@ jobs:
       - name: Collect netease + bilibili
         env:
           PYTHONIOENCODING: utf-8
-        run: python -c "
-          from daily_push.collector import collect_once
-          from daily_push.export_site import export_site
-          r = collect_once(netease=True, bilibili=True)
-          errs = {k: v.get('error') for k, v in r.items() if isinstance(v, dict) and 'error' in v}
-          print('collect errors:', errs)
-          p = export_site()
-          print('exported:', p)
-          "
+        run: python tools/cloud_collect.py
 
       - name: Commit site to main (Pages)
         run: |
