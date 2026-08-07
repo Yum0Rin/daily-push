@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日推送 · Daily Push</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>每日推送</h1>
+    <button id="themeToggle" class="ghost" title="切换主题">🌙</button>
+  </div>
+  <nav class="datebar">
+    <button id="prevDay" class="ghost">◀</button>
+    <input type="date" id="datePicker">
+    <button id="nextDay" class="ghost">▶</button>
+  </nav>
+</header>
+
+<main>
+  <div id="summary" class="summary"></div>
+
+  <section class="card" id="card-music" style="display:none">
+    <h2>🎵 网易云日推 Top 5</h2>
+    <ol class="songs" id="songs"></ol>
+  </section>
+
+  <section class="card" id="card-bili" style="display:none">
+    <h2>📺 B站 UP动态</h2>
+    <ul class="ups" id="ups"></ul>
+  </section>
+
+  <section class="card" id="card-mp" style="display:none">
+    <h2>📰 微信公众号推文</h2>
+    <ul class="articles" id="mpList"></ul>
+  </section>
+
+  <p id="emptyState" class="empty" style="display:none">该日暂无推送记录，每日开机自动采集。</p>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

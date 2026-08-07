@@ -1,0 +1,33 @@
+{
+  "netease": {
+    "cookie": "MUSIC_U=<你的Cookie>",
+    "base_url": "http://localhost:3000"
+  },
+  "bilibili": {
+    "sessdata": "<你的SESSDATA>",
+    "exclude": [],
+    "recent_days": 1,
+    "max_videos": 10,
+    "feed_pages": 2
+  },
+  "wechat": {
+    "important_biz": [],
+    "exclude_keywords": ["演出余票监控", "省教育厅", "三福sanfu"],
+    "notify_keywords": ["提醒", "通知", "签收", "到账", "取餐", "下单", "已支付", "排队", "发货", "日报", "账单", "领取", "优惠券"],
+    "max_articles": 10,
+    "article_days": 7
+  },
+  "xiaohongshu": {
+    "cookie": "web_session=<你的Cookie>",
+    "limit": 5
+  },
+  "push_time": "08:30",
+  "max_songs": 5,
+  "port": 5000,
+  "data_dir": "data",
+  "site": {
+    "repo": "<GitHub用户名>/daily-push",
+    "branch": "main",
+    "export_dir": "site"
+  }
+}
