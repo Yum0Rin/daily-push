@@ -57,7 +57,7 @@ jobs:
           git config user.name "daily-push bot"
           git config user.email "actions@users.noreply.github.com"
           git fetch origin main
-          git checkout -B publish main
+          git checkout -B publish origin/main
           cp -f site/index.html index.html
           git add index.html
           git commit -q -m "daily push $(date -u +%F)" || echo "nothing to commit"
