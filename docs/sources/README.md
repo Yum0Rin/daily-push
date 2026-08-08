@@ -8,9 +8,8 @@
 数组，每项：
 ```json
 {
-  "name": "歌名", "artists": "歌手", "album": "专辑",
-  "id": "歌曲ID", "url": "官网歌曲页链接",
-  "pic": "封面图URL", "duration": 217,
+  "id": 123456, "name": "歌名", "artists": "歌手1 / 歌手2", "album": "专辑",
+  "duration_ms": 217000, "pic": "封面图URL", "url": "官网歌曲页链接",
   "hot_comment": "最火热评文本（/comment/music，可为空字符串）"
 }
 ```
@@ -67,9 +66,10 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 - `notify_keywords`：标题命中即标记为通知类并排到列表下方，默认覆盖取餐/优惠券/快递等常见服务通知。
 仅保存标题+链接+作者，不存正文。
 
-## 小红书 (sources/xiaohongshu.py) → 预留
+## 小红书 → 已暂停（仅存档调研备忘）
 
-**当前未接通。** 已摸清签名方案（见 tools/xhs_console.txt），但：
+`sources/xiaohongshu.py` 已删除，无采集模块。仅 `tools/xhs_console.txt` / `xhs_capture.txt`
+保留当时的签名调研备忘，若日后重试可参考。**当前未接通。** 已摸清签名方案，但：
 
 - 关注流 `homefeed_follow` 与推荐流 `homefeed_recommend` 均返回
   `code 300011「当前账号存在异常，请切换账号后重试」` —— 账号被风控。

@@ -3,16 +3,32 @@
 > ⚠️ **重要**：本文件只说明各字段的**用途**，**不包含真实值**。
 > 真实凭证都在 `config.json` 里，该文件已被 `.gitignore` 排除，请勿提交到仓库。
 
-## 各平台凭证来源
+## 配置键参考
 
-| 配置键 | 含义 | 获取方式 |
-|--------|------|----------|
+| 配置键 | 含义 | 说明 |
+|--------|------|------|
 | `netease.cookie` | 网易云登录态 `MUSIC_U=...` | 浏览器登录网易云后复制 |
 | `netease.base_url` | 网易云API地址 | 默认 `http://localhost:3000` |
-| `bilibili.sessdata` | B站 Cookie 中 `SESSDATA` | 浏览器登录 B站后复制 |
-| `qq.*` | QQ群采集配置（账号/重要群/上限） | 见 chat-mcp qq-mcp-server |
-| `wechat.*` | 微信群+公众号配置（important_biz/max_articles 等） | 依赖微信本地解密 db |
-| `xiaohongshu.cookie` | 小红书 `web_session=...` 预留 | 浏览器登录后复制（**当前未用，被风控**） |
+| `bilibili.sessdata` | B站 Cookie 中 `SESSDATA` | 浏览器登录 B站后复制（动态接口需登录态 + WBI 签名） |
+| `bilibili.exclude` | 按 UP 名排除的动态 | 默认一组固定排除名单 |
+| `bilibili.recent_days` | 时间窗口天数 | 默认 1 |
+| `bilibili.max_videos` | 最多条数 | 默认 10 |
+| `bilibili.feed_pages` | 动态接口最多翻页数 | 默认 2 |
+| `wechat.exclude_keywords` | 标题/账号命中即剔除 | 默认含演出余票监控、省教育厅等 |
+| `wechat.notify_keywords` | 命中标记为「通知」类置底 | 默认覆盖取餐/优惠券/快递等 |
+| `wechat.important_biz` | 只保留这些公众号 | 默认空=不过滤 |
+| `wechat.max_articles` | 公众号最多条数 | 默认 10 |
+| `wechat.article_days` | 时间窗口天数 | 默认 7 |
+| `push_time` | 本地每日定时采集时间 HH:MM | 默认 `07:30` |
+| `max_songs` | 网易云日推条数 | 默认 5 |
+| `port` | Flask 本地端口 | 默认 5000 |
+| `data_dir` | SQLite 数据目录 | 默认 `data` |
+| `site.repo` | GitHub 仓库 `<user>/<repo>` | Pages 发布目标 |
+| `site.branch` | Pages 分支 | 默认 `main` |
+| `site.export_dir` | 静态站导出目录 | 默认 `site` |
+
+> 凭证类字段（Cookie / SESSDATA）只出现在本机 `config.json`，已被 `.gitignore` 排除。
+> 云端由 GitHub Actions 通过 Secrets 注入，见 `tools/make_cloud_config.py`。
 
 ## 隐私相关的外部依赖
 

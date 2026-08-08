@@ -2,6 +2,16 @@
 
 前端为纯静态（无框架），`templates/index.html` + `static/app.js` + `static/style.css`。
 
+## 双数据源
+
+`app.js` 顶部读取 `window.__DAYS__`（`const DAYS = window.__DAYS__ || null`），据此决定走哪种模式：
+
+- **本地模式**（Flask）：无 `__DAYS__`，`loadDay(date)` 请求 `/api/day/<date>`。
+- **静态模式**（GitHub Pages）：`export_site.py` 已把全部历史数据内联成 `window.__DAYS__ = {...}`，
+  `loadDay` 直接读内存，不发任何请求。这个单文件 `site/index.html` 也是导出/发布的核心产物。
+
+新增数据字段时两边都要通：改 `storage` 输出后，`app.js` 的 `render()` 按 `data.netease / data.bilibili / data.mp` 消费。
+
 ## 页面结构
 
 ```
