@@ -1,0 +1,64 @@
+name: daily-collect
+
+on:
+  schedule:
+    - cron: "30 23 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: code
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps
+        run: pip install -r requirements.txt
+
+      - name: Install NeteaseCloudMusicApi
+        run: npm install --omit=dev --retry=5
+
+      - name: Generate cloud config from secrets
+        env:
+          NETEASE_COOKIE: ${{ secrets.NETEASE_COOKIE }}
+          BILIBILI_SESSDATA: ${{ secrets.BILIBILI_SESSDATA }}
+        run: python tools/make_cloud_config.py
+
+      - name: Start Netease API
+        run: |
+          node netease_server.js > netease.out.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null http://localhost:3000; then echo "api up"; break; fi
+            sleep 1
+          done
+
+      - name: Collect netease + bilibili
+        env:
+          PYTHONIOENCODING: utf-8
+        run: python tools/cloud_collect.py
+
+      - name: Commit site to main (Pages)
+        run: |
+          git config user.name "daily-push bot"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B publish origin/main
+          cp -f site/index.html index.html
+          git add index.html
+          git commit -q -m "daily push $(date -u +%F)" || echo "nothing to commit"
+          git push -f origin publish:main
