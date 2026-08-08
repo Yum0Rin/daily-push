@@ -30,7 +30,7 @@ def _save_cutoffs(storage_dir, cutoffs):
         pass
 
 
-def collect_once(config_path=None, netease=True, bilibili=True):
+def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
     cfg = load_config(config_path)
     data_dir = cfg.get("data_dir", "data")
     storage_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), data_dir)
@@ -56,14 +56,17 @@ def collect_once(config_path=None, netease=True, bilibili=True):
             result["bilibili"] = {"error": str(e)}
 
     # WeChat official account articles (title + url)
-    if wechat_available():
-        try:
-            from .sources.wechat_article import WeChatArticleCollector
-            result["mp"] = WeChatArticleCollector(cfg).collect()
-        except Exception as e:
-            result["mp"] = {"error": str(e)}
+    if wechat:
+        if wechat_available():
+            try:
+                from .sources.wechat_article import WeChatArticleCollector
+                result["mp"] = WeChatArticleCollector(cfg).collect()
+            except Exception as e:
+                result["mp"] = {"error": str(e)}
+        else:
+            result["mp"] = {"error": "当前环境无法获取微信公众号数据（缺少微信解密环境）"}
     else:
-        result["mp"] = {"error": "当前环境无法获取微信公众号数据（缺少微信解密环境）"}
+        result.pop("mp", None)
 
     # 跨天去重：记录每天最后一次采集时间；次日只推「该时间之后」的新内容
     cutoffs = _load_cutoffs(storage_dir)

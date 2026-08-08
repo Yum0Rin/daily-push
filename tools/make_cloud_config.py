@@ -17,7 +17,8 @@ cfg["netease"]["cookie"] = os.environ.get("NETEASE_COOKIE", "")
 cfg["netease"]["base_url"] = "http://localhost:3000"
 cfg["bilibili"]["sessdata"] = os.environ.get("BILIBILI_SESSDATA", "")
 cfg["bilibili"]["exclude"] = ["冷水先森无人声助眠", "吉伊卡哇动画官方", "陶阿狗君",
-                              "钢铁猛懒懒", "医学老师刘忠保", "哔哩哔哩课堂", "独自做面包"]
+                              "钢铁猛懒懒", "医学老师刘忠保", "哔哩哔哩课堂", "我独自做面包",
+                              "菜菜子Nanako", "饼旭"]
 
 out = os.path.join(BASE_DIR, "config.json")
 with open(out, "w", encoding="utf-8") as f:

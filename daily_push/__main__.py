@@ -11,12 +11,11 @@ from daily_push.collector import collect_once  # noqa
 def main():
     netease = "--no-netease" not in sys.argv
     bilibili = "--no-bilibili" not in sys.argv
-    qq = "--no-qq" not in sys.argv
     wechat = "--no-wechat" not in sys.argv
-    result = collect_once(netease=netease, bilibili=bilibili, qq=qq, wechat=wechat)
+    result = collect_once(netease=netease, bilibili=bilibili, wechat=wechat)
     print("=" * 40)
     print("saved push_date:", result.get("push_date"))
-    for k in ("netease", "bilibili", "qq", "wechat"):
+    for k in ("netease", "bilibili", "mp"):
         if k in result:
             item = result[k]
             if isinstance(item, dict) and "error" in item:

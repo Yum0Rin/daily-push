@@ -31,6 +31,16 @@ class Storage:
                 self.conn.execute("ALTER TABLE pushes ADD COLUMN mp TEXT")
             self.conn.commit()
 
+    @staticmethod
+    def _has_data(v):
+        if v is None:
+            return False
+        if isinstance(v, dict) and "error" in v:
+            return False
+        if isinstance(v, list):
+            return bool(v)
+        return True
+
     def save(self, push_date, netease=None, bilibili=None, qq=None, wechat=None, mp=None):
         import datetime
         now = datetime.datetime.now().isoformat(timespec="seconds")
@@ -42,12 +52,9 @@ class Storage:
                 (push_date,)).fetchone()
             merged = {}
             for name, val in fields.items():
-                if existing is not None and (
-                    val is None
-                    or (isinstance(val, dict) and "error" in val)
-                ):
+                if existing is not None and not self._has_data(val):
                     old = json.loads(existing[name]) if existing[name] else None
-                    if old is not None:
+                    if self._has_data(old):
                         val = old
                 merged[name] = val
             self.conn.execute(

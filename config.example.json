@@ -5,7 +5,7 @@
   },
   "bilibili": {
     "sessdata": "<你的SESSDATA>",
-    "exclude": [],
+    "exclude": ["冷水先森无人声助眠", "吉伊卡哇动画官方", "陶阿狗君", "钢铁猛懒懒", "医学老师刘忠保", "哔哩哔哩课堂", "我独自做面包", "菜菜子Nanako", "饼旭"],
     "recent_days": 1,
     "max_videos": 10,
     "feed_pages": 2
