@@ -1,9 +1,22 @@
 """Netease Cloud Music daily recommend collector.
 
-Calls a local NeteaseCloudMusicApi instance (https://github.com/Binaryify/NeteaseCloudMusicApi)
-running on config.netease.base_url (default http://localhost:3000).
-The daily-recommend endpoints require a logged-in cookie (MUSIC_U and __csrf).
+Two interchangeable backends, selected by ``netease.mode`` in config:
+
+- ``ncm-cli`` (default): official openapi via the `ncm-cli` command line tool.
+  Requires `ncm-cli` installed and logged in on this machine
+  (``ncm-cli login`` once). No cookie / no local Node proxy needed.
+- ``api``: legacy unofficial path through a local NeteaseCloudMusicApi instance
+  (https://github.com/Binaryify/NeteaseCloudMusicApi) on ``netease.base_url``,
+  using a logged-in cookie. Used by cloud (GitHub Actions) runs where the
+  machine-bound ncm-cli login is unavailable.
+
+Both backends emit the same list-of-dicts shape:
+  [{id, name, artists, album, duration_ms, pic, url, hot_comment}, ...]
 """
+import json
+import shutil
+import subprocess
+
 import requests
 
 
@@ -11,7 +24,9 @@ class NeteaseError(Exception):
     pass
 
 
-class NeteaseCollector:
+class _NeteaseHttp:
+    """Legacy backend: local NeteaseCloudMusicApi proxy + cookie."""
+
     def __init__(self, cfg):
         netease = cfg.get("netease", {})
         self.base = (netease.get("base_url") or "http://localhost:3000").rstrip("/")
@@ -51,8 +66,9 @@ class NeteaseCollector:
             pass
         return ""
 
-    def top_songs(self):
-        """Return top N recommended daily songs via /recommend/songs."""
+    def collect(self):
+        if not self.cookie:
+            raise NeteaseError("netease cookie not configured")
         data = self._get("/recommend/songs")
         songs = (data.get("data") or {}).get("dailySongs") or []
         out = []
@@ -70,7 +86,84 @@ class NeteaseCollector:
             })
         return out
 
+
+class _NeteaseNcmCli:
+    """Official backend: drive the `ncm-cli` command line tool."""
+
+    CMD = "ncm-cli"
+
+    def __init__(self, cfg):
+        self.max_songs = cfg.get("max_songs", 5)
+        if shutil.which(self.CMD) is None:
+            raise NeteaseError("ncm-cli not found in PATH; install it with "
+                               "'npm install -g @music163/ncm-cli'")
+
+    def _cli(self, *args):
+        """Run ncm-cli and parse its JSON output."""
+        try:
+            r = subprocess.run(
+                [self.CMD, *args],
+                capture_output=True, text=True, encoding="utf-8",
+                errors="replace", shell=True, timeout=60,
+            )
+        except subprocess.TimeoutExpired:
+            raise NeteaseError("ncm-cli timed out")
+        if r.returncode != 0:
+            msg = (r.stderr or r.stdout or "").strip()
+            if "请先登录" in msg or "未登录" in msg or "login" in msg.lower():
+                raise NeteaseError("ncm-cli 未登录，请先执行 ncm-cli login")
+            if "API key" in msg or "appId" in msg:
+                raise NeteaseError("ncm-cli API key 未配置，请执行 ncm-cli configure")
+            raise NeteaseError(f"ncm-cli failed: {msg[:200]}")
+        try:
+            return json.loads(r.stdout)
+        except ValueError:
+            raise NeteaseError("ncm-cli returned non-JSON output")
+
+    def _daily_songs(self):
+        data = self._cli("recommend", "daily", "--limit", str(self.max_songs))
+        return data.get("data") or []
+
+    def _hot_comment(self, enc_id):
+        """Top hot comment via official comment API; '' if unavailable."""
+        try:
+            data = self._cli("comment", "list-hot", "--type", "song",
+                             "--resourceId", str(enc_id),
+                             "--limit", "1", "--offset", "0")
+            records = (data.get("data") or {}).get("records") or []
+            if records and records[0].get("content"):
+                return records[0]["content"].strip()
+        except Exception:
+            pass
+        return ""
+
     def collect(self):
-        if not self.cookie:
-            raise NeteaseError("netease cookie not configured")
-        return self.top_songs()
+        songs = self._daily_songs()
+        if not songs:
+            raise NeteaseError("ncm-cli returned no daily songs")
+        out = []
+        for s in songs[: self.max_songs]:
+            ar = " / ".join([a.get("name", "") for a in (s.get("artists") or [])])
+            out.append({
+                "id": s.get("originalId"),
+                "name": s.get("name", ""),
+                "artists": ar,
+                "album": (s.get("album") or {}).get("name", ""),
+                "duration_ms": s.get("duration"),
+                "pic": s.get("coverImgUrl", ""),
+                "url": f"https://music.163.com/song?id={s.get('originalId')}",
+                "hot_comment": self._hot_comment(s.get("id")),
+            })
+        return out
+
+
+def NeteaseCollector(cfg):
+    """Factory: pick the netease backend from config netease.mode.
+
+    mode ``ncm-cli`` uses the official CLI (default, local);
+    mode ``api`` uses the legacy NeteaseCloudMusicApi proxy (cloud/backup).
+    """
+    mode = (cfg.get("netease") or {}).get("mode", "ncm-cli")
+    if mode == "api":
+        return _NeteaseHttp(cfg)
+    return _NeteaseNcmCli(cfg)

@@ -102,8 +102,18 @@ def _port_open(host, port):
 
 
 def ensure_netease_api():
-    """Ensure NeteaseCloudMusicApi is listening on :3000; spawn if needed."""
-    base = load_config().get("netease", {}).get("base_url", "http://localhost:3000")
+    """Ensure NeteaseCloudMusicApi is listening on :3000; spawn if needed.
+
+    Only needed for the legacy ``api`` netease mode. When using ``ncm-cli``
+    mode the official CLI replaces the Node proxy entirely, so nothing is
+    started here.
+    """
+    cfg = load_config()
+    mode = cfg.get("netease", {}).get("mode", "ncm-cli")
+    if mode != "api":
+        print("[start] netease mode=ncm-cli, skipping NeteaseCloudMusicApi")
+        return
+    base = cfg.get("netease", {}).get("base_url", "http://localhost:3000")
     _, _, rest = base.partition("://")
     host, _, port = rest.partition(":")
     port = int(port)

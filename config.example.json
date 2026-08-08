@@ -1,5 +1,6 @@
 {
   "netease": {
+    "mode": "ncm-cli",
     "cookie": "MUSIC_U=<你的Cookie>",
     "base_url": "http://localhost:3000"
   },
