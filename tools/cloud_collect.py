@@ -31,6 +31,7 @@ def _published_days():
         out = subprocess.run(
             ["git", "show", "origin/main:index.html"],
             capture_output=True, text=True, timeout=60,
+            encoding="utf-8", errors="replace",
         )
         if out.returncode != 0:
             return {}
@@ -74,6 +75,9 @@ def main():
     errs = {k: v.get("error") for k, v in r.items()
             if isinstance(v, dict) and "error" in v}
     print("collect errors:", errs)
+    status = {"push_date": r.get("push_date"), "errors": errs}
+    with open(os.path.join(BASE_DIR, "cloud_status.json"), "w", encoding="utf-8") as f:
+        json.dump(status, f, ensure_ascii=False, indent=2)
     p = export_site()
     print("exported:", p)
 

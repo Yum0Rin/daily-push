@@ -13,7 +13,7 @@ def load_config(path=None):
     with open(path, encoding="utf-8") as f:
         cfg = json.load(f)
     cfg.setdefault("netease", {})
-    cfg["netease"].setdefault("mode", "ncm-cli")
+    cfg["netease"].setdefault("mode", "api")
     cfg.setdefault("bilibili", {})
     cfg["bilibili"].setdefault("up_ids", [])
     cfg.setdefault("qq", {})

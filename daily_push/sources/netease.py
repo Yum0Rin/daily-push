@@ -2,13 +2,12 @@
 
 Two interchangeable backends, selected by ``netease.mode`` in config:
 
-- ``ncm-cli`` (default): official openapi via the `ncm-cli` command line tool.
+- ``api`` (default): legacy unofficial path through a local NeteaseCloudMusicApi instance
+  (https://github.com/Binaryify/NeteaseCloudMusicApi) on ``netease.base_url``,
+  using a logged-in cookie.
+- ``ncm-cli`` (backup): official openapi via the `ncm-cli` command line tool.
   Requires `ncm-cli` installed and logged in on this machine
   (``ncm-cli login`` once). No cookie / no local Node proxy needed.
-- ``api``: legacy unofficial path through a local NeteaseCloudMusicApi instance
-  (https://github.com/Binaryify/NeteaseCloudMusicApi) on ``netease.base_url``,
-  using a logged-in cookie. Used by cloud (GitHub Actions) runs where the
-  machine-bound ncm-cli login is unavailable.
 
 Both backends emit the same list-of-dicts shape:
   [{id, name, artists, album, duration_ms, pic, url, hot_comment}, ...]
@@ -160,10 +159,10 @@ class _NeteaseNcmCli:
 def NeteaseCollector(cfg):
     """Factory: pick the netease backend from config netease.mode.
 
-    mode ``ncm-cli`` uses the official CLI (default, local);
-    mode ``api`` uses the legacy NeteaseCloudMusicApi proxy (cloud/backup).
+    mode ``api`` uses the legacy NeteaseCloudMusicApi proxy (default);
+    mode ``ncm-cli`` uses the official CLI (backup).
     """
-    mode = (cfg.get("netease") or {}).get("mode", "ncm-cli")
+    mode = (cfg.get("netease") or {}).get("mode", "api")
     if mode == "api":
         return _NeteaseHttp(cfg)
     return _NeteaseNcmCli(cfg)

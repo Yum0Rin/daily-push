@@ -14,8 +14,8 @@
 }
 ```
 数据来源可通过 config `netease.mode` 切换：
-- `ncm-cli`（默认）：走官方开放平台接口，通过本机已登录的 `ncm-cli` 命令行获取每日推荐（`recommend daily`）与热评（`comment list-hot`），不需 Cookie，不需 node 代理。需先 `ncm-cli login` 登录一次。
-- `api`（云端/备用）：走 NeteaseCloudMusicApi（:3000 node 进程）+ Cookie，通过 `/recommend/songs` 和 `/comment/music`。云端 GitHub Actions 无法复用本机 ncm-cli 登录态，故保留此备用方案。
+- `api`（默认）：走 NeteaseCloudMusicApi（:3000 node 进程）+ Cookie，通过 `/recommend/songs` 和 `/comment/music`。
+- `ncm-cli`（备用）：走官方开放平台接口，通过本机已登录的 `ncm-cli` 命令行获取每日推荐（`recommend daily`）与热评（`comment list-hot`），不需 Cookie，不需 node 代理。需先 `ncm-cli login` 登录一次。
 
 每首歌额外请求一次热评，失败则置空，不影响整卡。
 

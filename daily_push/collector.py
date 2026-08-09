@@ -9,6 +9,13 @@ from .storage import Storage
 
 CUTOFFS_FILE = "cutoffs.json"
 
+BEIJING_OFFSET = datetime.timedelta(hours=8)
+
+
+def _beijing_today():
+    """今天的日期（固定 UTC+8，保证云端 GitHub Actions 与本地一致）。"""
+    return datetime.datetime.now(datetime.timezone(BEIJING_OFFSET)).date()
+
 
 def _cutoffs_path(storage_dir):
     return os.path.join(storage_dir, CUTOFFS_FILE)
@@ -36,14 +43,25 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
     storage_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), data_dir)
     storage = Storage(storage_dir)
 
-    today = datetime.date.today()
+    today = _beijing_today()
     result = {"push_date": today.isoformat()}
 
     # Netease
     if netease:
         from .sources.netease import NeteaseCollector, NeteaseError
+        yesterday = (today - datetime.timedelta(days=1)).isoformat()
+        prev = storage.get(yesterday)
+        prev_ids = None
+        if prev and isinstance(prev.get("netease"), list):
+            prev_ids = {s.get("id") for s in prev["netease"] if s.get("id")}
         try:
             result["netease"] = NeteaseCollector(cfg).collect()
+            # 日推偶发返回昨天的缓存歌单：若与昨日完全一致，稍等后重试一次
+            if prev_ids:
+                cur_ids = {s.get("id") for s in result["netease"] if s.get("id")}
+                if cur_ids and cur_ids == prev_ids:
+                    time.sleep(3)
+                    result["netease"] = NeteaseCollector(cfg).collect()
         except NeteaseError as e:
             result["netease"] = {"error": str(e)}
 

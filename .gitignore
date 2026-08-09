@@ -20,6 +20,9 @@ node_modules/
 .netease_api_tmp/
 .pytest_cache/
 
+# 云端采集状态（Actions 每次运行生成）
+cloud_status.json
+
 # 操作系统
 .DS_Store
 Thumbs.db
