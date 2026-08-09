@@ -147,13 +147,17 @@ function renderBili(data) {
 
 function renderArticles(data) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
-  els.cardMp.style.display = (isErr || (Array.isArray(data) && data.length > 0)) ? "" : "none";
+  const empty = !Array.isArray(data) || data.length === 0;
+  els.cardMp.style.display = (isErr || (Array.isArray(data) && data.length > 0) || (DAYS && empty)) ? "" : "none";
   if (isErr) {
     els.mpList.innerHTML = errBlock("mp", data.error);
     return;
   }
-  if (!Array.isArray(data)) {
-    els.mpList.innerHTML = "";
+  if (empty) {
+    // 云端（静态站）不采集公众号，mp 常为空 → 显示权限说明，避免整个卡片消失
+    els.mpList.innerHTML = DAYS
+      ? `<div class="module-note">📰 公众号推文仅在本机（微信解密环境）采集，云端不采集，故此处为空。</div>`
+      : "";
     return;
   }
   els.mpList.innerHTML = data.map((a) => `

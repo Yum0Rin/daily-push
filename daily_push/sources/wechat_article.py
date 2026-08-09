@@ -36,7 +36,22 @@ class WeChatArticleCollector:
             or ["提醒", "通知", "签收", "到账", "取餐", "下单", "已支付",
                 "排队", "发货", "日报", "账单", "领取", "优惠券"])]
         self.max_articles = int(c.get("max_articles", 10))
-        self.days = int(c.get("article_days", 7))
+        self.mp_cutoff_hour = int(c.get("mp_cutoff_hour", 18))
+
+    def _window(self):
+        """推送窗口：最近一次「18:00 截止点」之后的 24h ~ 当前时刻（北京时间）。
+
+        起始 = 最近已结束那天 18:00:01（如晚上采 → 前一天 18:00:01；早上采 → 前天 18:00:01），
+        结束 = 现在（当天更晚的新文章也会被采进来）。
+        重复推送由 collector 的跨天去重（cutoffs.json）兜底。
+        """
+        tz = datetime.timezone(datetime.timedelta(hours=8))
+        now = datetime.datetime.now(tz)
+        boundary = now.replace(hour=self.mp_cutoff_hour, minute=0, second=0, microsecond=0)
+        if now < boundary:
+            boundary -= datetime.timedelta(days=1)
+        start = boundary - datetime.timedelta(days=1) + datetime.timedelta(seconds=1)
+        return int(start.timestamp()), int(now.timestamp())
 
     def _ctx(self):
         from wechat_cli_mcp.context import get_context
@@ -76,8 +91,7 @@ class WeChatArticleCollector:
         path = ctx.cache.get(rel)
         if not path:
             return []
-        cutoff = (datetime.datetime.now()
-                  - datetime.timedelta(days=self.days)).timestamp()
+        start_ts, end_ts = self._window()
         articles = []
         try:
             with closing(sqlite3.connect(path)) as conn:
@@ -91,8 +105,9 @@ class WeChatArticleCollector:
                         rows = conn.execute(
                             f"SELECT create_time, WCDB_CT_message_content, "
                             f"message_content FROM [{t}] "
-                            f"WHERE create_time >= ? ORDER BY create_time DESC LIMIT 50",
-                            (int(cutoff),),
+                            f"WHERE create_time >= ? AND create_time <= ? "
+                            f"ORDER BY create_time DESC LIMIT 50",
+                            (int(start_ts), int(end_ts)),
                         ).fetchall()
                     except Exception:
                         continue
@@ -123,8 +138,13 @@ class WeChatArticleCollector:
 
     def collect(self):
         from wechat_cli_mcp.core.messages import decompress_content
+        ctx = self._ctx()
+        import glob
+        # 动态发现全部公众号库（biz_message_*.db），避免新库出现后漏采
+        dbs = sorted(glob.glob(os.path.join(ctx.db_dir, "message", "biz_message_*.db")))
         articles = []
-        for rel in ("message/biz_message_0.db", "message/biz_message_1.db"):
+        for path in dbs:
+            rel = "message/" + os.path.basename(path)
             articles += self._collect_from_one_db(decompress_content, rel)
         # dedupe by url; content first, notifications below, both by time desc
         seen, unique = set(), []

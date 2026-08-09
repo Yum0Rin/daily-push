@@ -64,10 +64,14 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
   "timestamp": 1754623229
 }
 ```
-数据来源：微信解密后的 `biz_message_*.db`（公众号库，含今日推文），
+数据来源：微信解密后的 `biz_message_*.db`（公众号库，动态发现全部库，含今日推文），
 提取 appmsg XML 的 `<title>`、`<url>` 与 `<mmreader><category><name>`（公众号名）。
 排序：内容推文在前、通知类在后，各自按发布时间倒序，默认取 10 条
-（config `wechat.max_articles` / `article_days`）。
+（config `wechat.max_articles`）。
+
+**时间窗口**（config `wechat.mp_cutoff_hour`，默认 18）：窗口 = 最近一次「当天 18:00」之后 ~ 当前时刻。
+即起始边界为 18:00（晚上采 → 前一天 18:00 起；早上采 → 前天 18:00 起），结束为当前时刻，
+保证当天更晚的新文章也会被采到；重复推送由 collector 的跨天去重（cutoffs.json）兜底。
 
 过滤与分类（config `wechat.exclude_keywords` / `notify_keywords`，均有默认值）：
 - `exclude_keywords`：标题或账号名命中即排除，默认 `演出余票监控 / 省教育厅 / 三福sanfu`。

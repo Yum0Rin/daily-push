@@ -16,7 +16,7 @@
     "exclude_keywords": ["演出余票监控", "省教育厅", "三福sanfu"],
     "notify_keywords": ["提醒", "通知", "签收", "到账", "取餐", "下单", "已支付", "排队", "发货", "日报", "账单", "领取", "优惠券"],
     "max_articles": 10,
-    "article_days": 7
+    "mp_cutoff_hour": 18
   },
   "xiaohongshu": {
     "cookie": "web_session=<你的Cookie>",

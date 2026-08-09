@@ -134,6 +134,11 @@ button.stat .value { margin-top: 4px; }
   margin-top: 8px; font-size: 11px; color: var(--muted);
   word-break: break-all; opacity: .7;
 }
+.module-note {
+  padding: 14px 16px; border-radius: 10px;
+  border: 1px dashed var(--border); background: var(--card-2);
+  font-size: 13px; color: var(--muted);
+}
 
 .badge-updated, .badge-idle, .badge-err {
   font-size: 11px; padding: 2px 8px; border-radius: 20px; margin-left: auto; flex-shrink: 0;
