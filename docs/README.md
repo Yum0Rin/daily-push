@@ -17,7 +17,7 @@
 
 | 文档 | 内容 |
 |------|------|
-| [architecture.md](architecture.md) | 整体架构：本地/云端两条运行链路、`collect_once` 编排、跨天去重、存储合并语义、静态站导出与发布、防风控策略 |
+| [architecture.md](architecture.md) | 整体架构：本地/云端两条运行链路、`collect_once` 编排、跨天去重、存储合并语义、静态站导出与发布、失败邮件通知 + Cookie 自动修复、防风控策略 |
 | [sources/README.md](sources/README.md) | 数据源契约：每个采集器的输出结构、过滤配置、依赖前置 |
 | [frontend.md](frontend.md) | 前端实现：页面结构、渲染逻辑、双数据源（本地 API / 内联 `__DAYS__`）、样式约定与变更记录 |
 | [config-privacy.md](config-privacy.md) | 配置键参考 + 敏感信息处置（Cookie / 解密密钥 / 库文件），**改配置前必读** |

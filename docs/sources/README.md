@@ -17,6 +17,9 @@
 - `api`（默认）：走 NeteaseCloudMusicApi（:3000 node 进程）+ Cookie，通过 `/recommend/songs` 和 `/comment/music`。
 - `ncm-cli`（备用）：走官方开放平台接口，通过本机已登录的 `ncm-cli` 命令行获取每日推荐（`recommend daily`）与热评（`comment list-hot`），不需 Cookie，不需 node 代理。需先 `ncm-cli login` 登录一次。
 
+Cookie 失效时：报错邮件主题会带 `ref=日期-来源`，直接**回复该邮件**、正文第一行贴新 Cookie
+即可自动更新（云端更新 Secrets + 本地写回 config.json），详见 architecture.md「失败通知与 Cookie 自动修复」。
+
 每首歌额外请求一次热评，失败则置空，不影响整卡。
 
 ## B站关注UP (sources/bilibili.py) → `bilibili` 字段

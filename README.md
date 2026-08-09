@@ -16,7 +16,7 @@
 | 前端 | 原生 HTML/CSS/JS（无框架） | 静态仪表盘，可脱离后端运行 |
 | 网易云数据 | Node 包 `NeteaseCloudMusicApi` | 本地代理网易云官方接口（:3000） |
 | 微信数据 | 复用 `chat-mcp/wechat-mcp-server` 的解密模块 | 解密本地微信库，取公众号推文 |
-| 云端定时 | GitHub Actions（`schedule` cron） | 每天 23:30 UTC（=08:30 北京时间）自动采集并发布 |
+| 云端定时 | GitHub Actions（`schedule` cron） | 每天 23:30 UTC（=07:30 北京时间）自动采集并发布（云端按北京时间入库） |
 | 静态托管 | GitHub Pages | 采集结果对外可访问（无需开电脑） |
 | 计划任务 | 系统 `schedule` 语义自实现（daemon 线程） | 本地每日定时兜底采集 |
 
@@ -53,9 +53,14 @@ daily-push/
 ├── tools/
 │   ├── make_cloud_config.py     # 云端用 secrets 生成 config.json
 │   ├── cloud_collect.py         # GitHub Actions 云端采集入口
+│   ├── notify_email.py          # 失败邮件通知（本地/云端通用 SMTP）
+│   ├── cookie_reply.py          # 回复邮件更新 Cookie：IMAP/解析/验证/写回
+│   ├── cookie_repair_cloud.py   # 云端每 10 分钟轮询回复并更新 Secrets
+│   ├── trigger_cookie_repair.py # 判定 cookie 类错误并触发 cookie-repair
 │   ├── xhs_console.txt          # 小红书签名调研备忘（未启用）
 │   └── xhs_capture.txt          # 小红书请求头捕获脚本（未启用）
-├── .github/workflows/daily-collect.yml  # 云端每日采集 + 发布 workflow
+├── .github/workflows/daily-collect.yml  # 云端每日采集 + 发布 + 出错通知 workflow
+├── .github/workflows/cookie-repair.yml  # 回复邮件自动更新 Cookie 的轮询 workflow
 └── docs/                        # 更细化的设计说明文档
 ```
 
@@ -67,19 +72,24 @@ daily-push/
 
 | 模块 | 一句话职责 |
 |------|-----------|
-| `start.py` | 本地一键启动：拉起网易云 API → 首次采集 → Flask 网页 → 每日定时兜底 + 桌面出错提醒 |
+| `start.py` | 本地一键启动：拉起网易云 API → 首次采集 → Flask 网页 → 每日定时兜底；失败发邮件并按 5 分钟耐心重试 |
 | `daily_push/config.py` | 读取 `config.json` 并补齐默认值 |
 | `daily_push/storage.py` | SQLite 存储：按 `push_date` 一行，**按日合并**（采集失败不覆盖当天旧值） |
-| `daily_push/collector.py` | 聚合编排：按序采集各来源 → 跨天去重 → 写库 |
-| `sources/netease.py` | 网易云日推 Top N（含 top1 热评），走本地 `NeteaseCloudMusicApi` |
+| `daily_push/collector.py` | 聚合编排：按序采集各来源 → 跨天去重 → 写库；`push_date` 固定北京时间（UTC+8） |
+| `sources/netease.py` | 网易云日推 Top N（含 top1 热评），`netease.mode=api`（默认）走本地 `NeteaseCloudMusicApi` |
 | `sources/bilibili.py` | B站关注动态（WBI 签名 + 412/HTML 防风控退避重试） |
 | `sources/wechat_article.py` | 公众号推文标题+链接+作者，读微信本地解密库 |
-| `daily_push/app.py` | Flask 仪表盘 + `/api/*` 数据接口 + 异步采集接口 |
+| `daily_push/app.py` | Flask 仪表盘 + `/api/*` 数据接口 + 异步采集接口（失败也发邮件） |
 | `daily_push/export_site.py` | 导出单文件静态站 → git push 到 GitHub Pages |
 | `daily_push/__main__.py` | CLI：`python -m daily_push` 手动采集一次 |
 | `templates/index.html` + `static/*` | 无框架前端仪表盘，本地 API / 内联 `__DAYS__` 双数据源 |
+| `tools/notify_email.py` | 失败邮件通知：本地读 `config.json` email 段，云端读 Secrets `SMTP_*` |
+| `tools/cookie_reply.py` | 回复邮件更新 Cookie：IMAP 读取 → 剥离引用 → 解析 → 验证 → 写回本地 |
+| `tools/cookie_repair_cloud.py` | 云端每 10 分钟轮询回复（最多 6h），验证后 `gh secret set` 更新 Secrets |
+| `tools/trigger_cookie_repair.py` | 判定 cookie 类错误并触发 `cookie-repair` 工作流 |
 | `tools/` | 云端采集辅助：secrets 生成 config、云端采集入口 |
-| `.github/workflows/daily-collect.yml` | 云端每日定时采集并发布 Pages |
+| `.github/workflows/daily-collect.yml` | 云端每日采集 + 发布 Pages + 出错发邮件 + 触发 cookie-repair |
+| `.github/workflows/cookie-repair.yml` | 回复邮件自动更新 Cookie：轮询 → 验证 → 更新 Secrets → 结果邮件 |
 
 各模块的详细设计、数据源输出结构、前端实现细节、配置键参考与隐私处置，分别见
 [docs/architecture.md](docs/architecture.md)、[docs/sources/README.md](docs/sources/README.md)、
@@ -131,8 +141,11 @@ python start.py                    # 一键启动（或 python start.py --no-col
 ## 六、当前能力与限制
 
 - ✅ 网易云日推 Top5（含热评）、B站关注动态、公众号推文，本地网页 + 云端 Pages 双通道。
+- ✅ 失败统一邮件通知（本地·采集/推送、云端），标明失败来源。
+- ✅ Cookie 失效自动修复：回复报错邮件贴新 Cookie，云端每 10 分钟轮询并更新 Secrets，本地自愈写回 config.json。
+- ✅ 网络/登录失败自动耐心重试：采集每 5 分钟、推送每 60 秒，恢复后自动补上。
 - ⛔ 小红书已暂停（接口被风控 `300011`，签名已摸清但账号被标记，见 `docs/sources/README.md`）。
 - 网易云只提供官网歌曲页链接（`orpheus://` 客户端协议本机无法唤起）。
-- 公众号采集依赖本机微信解密环境，云端不采集 mp。
+- 公众号采集依赖本机微信解密环境，云端不采集 mp（但本地 mp 会在推送时随站点合并保留）。
 
 详见 `docs/status.md`。

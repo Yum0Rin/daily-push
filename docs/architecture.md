@@ -13,14 +13,21 @@
 └─────────────────────────────────────────────────────────────┘
 
 ┌─ 云端链路（GitHub Actions）────────────────────────────────┐
-│  cron 30 23 * * *（UTC，≈北京 07:30）触发                    │
+│  cron 30 23 * * *（UTC，=北京 07:30，job 级 TZ=Asia/Shanghai）│
 │  用 secrets 生成 config.json → 启动网易云 API                │
 │  cloud_collect.py → collect_once(netease, bilibili)         │
 │  export_site() → push 到 main（Pages）                       │
+│  出错 → notify_email.py 发邮件                               │
+│  cookie 类错误 → trigger_cookie_repair.py                    │
+│    触发 cookie-repair.yml（回复邮件自动更新 Cookie）          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 两条链路共用 `collect_once()` 与 `export_site()`，区别仅在于：云端不采公众号（无微信解密环境）。
+
+**时区**：`push_date` 固定用北京时间（`_beijing_today()`，UTC+8），
+避免云端 runner（默认 UTC）把 07:30 北京时间的采集结果写到前一天——这是 2026-08-09
+「网页永远没有 08-09」的根因。
 
 ## collect_once() 编排（collector.py）
 
@@ -71,9 +78,36 @@
 - **发布**：在 `site/` 内建一个指向远端分支的临时仓库，`reset --hard origin/<branch>`
   保留分支上其他文件（如 workflow），只提交并 push `index.html`，防止清空分支。
 
+## 失败通知与 Cookie 自动修复
+
+**邮件通知**（`tools/notify_email.py`）—— 所有失败统一走邮件，不再桌面弹窗：
+- SMTP 配置：本地读 `config.json.email` 段；云端读 Secrets `SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/MAIL_TO`。
+- 主题标明环节：`每日推送 · 本地采集失败 / 本地推送失败 / 云端采集失败 / 云端工作流提前失败`。
+- 邮件里列出的错误来源即对应网易云 / B站 / 公众号。
+
+**Cookie 自动修复**（报错邮件 → 回复 → 自动更新，云端 + 本地双通道）：
+1. 采集报错若属 cookie/登录类（网易云 `MUSIC_U`、B站 `SESSDATA`），
+   报错邮件主题追加 `ref=日期-来源` 标记（如 `ref=2026-08-09-netease`）。
+2. 云端 `cookie-repair.yml`（`workflow_dispatch`，需 Secrets `REPO_TOKEN`）被触发后，
+   每 10 分钟 IMAP 轮询收件箱，最多 6 小时。
+3. 找到你回复的邮件 → `tools/cookie_reply.py` 剥离引用原文、按行解析新 cookie
+   （netease 在前、bilibili 在后，一行一个、不带前缀）。
+4. 验证：网易云 `/user/account`、B站 `/x/web-interface/nav`。
+5. 通过 → `gh secret set` 更新 GitHub Secrets → 回「已更新并验证通过」邮件 → **停止轮询**；
+   无效 → 回「Cookie 无效，请重新回复」邮件 → **停止轮询**；超时 → 回超时邮件 → 停止。
+6. 本地 `start.py` 重试循环里同样读邮箱回复，直接写回 `config.json`
+   （电脑关机时则下次开机自动补上，无需手动改）。
+
+触发方：云端 `daily-collect.yml` 出错后由 `tools/trigger_cookie_repair.py` 触发；
+本地 `start.py` 用本机 `gh`（需 `repo`+`workflow` 权限）触发。
+
 ## start.py 说明
 
 - `--no-collect`：只启动服务，不做首次采集。
 - `_port_open()` 端口检测去重，避免重复拉起网易云 API。
 - 每日定时：`push_time`（默认 07:30）独立 daemon 线程，作为开机采集的兜底。
-- 出错提醒：采集失败写桌面 `collect_error.txt` 并弹出（每天一次，标记文件去重）。
+- 失败处理（统一邮件 + 耐心重试）：
+  - 采集失败 → `_report_errors()` 发「本地 · 采集失败」邮件，每 5 分钟重试；
+  - 推送失败 → 发「本地 · 推送失败」邮件，后台每 60 秒重试直到成功；
+  - cookie 类错误 → 邮件主题带 `ref=`，用本机 gh 触发云端 `cookie-repair`，
+    并在重试时读邮箱回复自愈写回 `config.json`。

@@ -7,6 +7,7 @@
 
 | 配置键 | 含义 | 说明 |
 |--------|------|------|
+| `netease.mode` | 网易云后端模式 | `api`（默认，NeteaseCloudMusicApi+Cookie）；`ncm-cli`（官方 CLI，备用） |
 | `netease.cookie` | 网易云登录态 `MUSIC_U=...` | 浏览器登录网易云后复制 |
 | `netease.base_url` | 网易云API地址 | 默认 `http://localhost:3000` |
 | `bilibili.sessdata` | B站 Cookie 中 `SESSDATA` | 浏览器登录 B站后复制（动态接口需登录态 + WBI 签名） |
@@ -19,6 +20,10 @@
 | `wechat.important_biz` | 只保留这些公众号 | 默认空=不过滤 |
 | `wechat.max_articles` | 公众号最多条数 | 默认 10 |
 | `wechat.article_days` | 时间窗口天数 | 默认 7 |
+| `email.smtp_host/port` | 本地发件 SMTP | 如 `smtp.qq.com:465`（授权码） |
+| `email.smtp_user/pass` | 发件邮箱 + SMTP 授权码 | QQ 邮箱授权码 SMTP/IMAP 通用 |
+| `email.mail_to` | 收件邮箱 | 失败通知 / cookie 修复结果都发到这里 |
+| `email.imap_host/port` | IMAP 收信（可选，默认推导） | 默认 `smtp.`→`imap.`，端口 993 |
 | `push_time` | 本地每日定时采集时间 HH:MM | 默认 `07:30` |
 | `max_songs` | 网易云日推条数 | 默认 5 |
 | `port` | Flask 本地端口 | 默认 5000 |
@@ -27,8 +32,16 @@
 | `site.branch` | Pages 分支 | 默认 `main` |
 | `site.export_dir` | 静态站导出目录 | 默认 `site` |
 
-> 凭证类字段（Cookie / SESSDATA）只出现在本机 `config.json`，已被 `.gitignore` 排除。
+> 凭证类字段（Cookie / SESSDATA / SMTP 授权码）只出现在本机 `config.json`，已被 `.gitignore` 排除。
 > 云端由 GitHub Actions 通过 Secrets 注入，见 `tools/make_cloud_config.py`。
+
+### GitHub Secrets（云端使用）
+
+| Secret | 用途 |
+|--------|------|
+| `NETEASE_COOKIE` / `BILIBILI_SESSDATA` | 云端采集登录态 |
+| `SMTP_HOST/PORT/USER/PASS`、`MAIL_TO` | 云端失败邮件通知 |
+| `REPO_TOKEN` | PAT（`repo`+`workflow` scope）：触发 `cookie-repair` + `gh secret set` 更新 cookie |
 
 ## 隐私相关的外部依赖
 
