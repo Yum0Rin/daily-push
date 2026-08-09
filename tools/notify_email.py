@@ -1,14 +1,12 @@
-"""GitHub Actions 云端采集出错时发邮件通知。
+"""采集/推送失败通知：云端和本地统一走 SMTP 邮件。
 
-读取 cloud_status.json（由 cloud_collect.py 生成）：
-- errors 非空 → 发邮件列出失败模块与原因
-- 文件缺失 → 说明工作流在生成结果前就失败了（依赖安装/网络等）
-- 无错误 → 不发邮件
+- 云端（GitHub Actions）：读取 cloud_status.json，SMTP 配置来自环境变量 SMTP_*（GitHub Secrets）。
+- 本地（start.py）：直接调用 send_email()，SMTP 配置来自 config.json 的 email 段。
 
-需要 GitHub Secrets（在 Settings -> Secrets 配置）：
-    SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS / MAIL_TO
-QQ 邮箱示例：SMTP_HOST=smtp.qq.com, SMTP_PORT=465,
-SMTP_USER=<QQ号>@qq.com, SMTP_PASS=授权码（非登录密码）, MAIL_TO=收件地址
+邮件主题统一带前缀区分来源：
+    · 每日推送 · 云端采集失败 / 云端工作流提前失败
+    · 每日推送 · 本地采集失败
+    · 每日推送 · 本地推送失败
 """
 import json
 import os
@@ -20,24 +18,34 @@ from email.utils import formataddr
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATUS_FILE = os.path.join(BASE_DIR, "cloud_status.json")
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
 
 
-def _load_status():
+def _config_email():
     try:
-        with open(STATUS_FILE, encoding="utf-8") as f:
-            return json.load(f)
+        with open(CONFIG_FILE, encoding="utf-8") as f:
+            cfg = json.load(f)
+        return cfg.get("email") or {}
     except Exception:
-        return None
+        return {}
 
 
-def _send(subject, body):
-    host = os.environ.get("SMTP_HOST", "").strip()
-    port = os.environ.get("SMTP_PORT", "").strip()
-    user = os.environ.get("SMTP_USER", "").strip()
-    pwd = os.environ.get("SMTP_PASS", "").strip()
-    to = os.environ.get("MAIL_TO", "").strip()
+def _resolve_smtp():
+    """返回 (host, port, user, pwd, to)。云端优先环境变量，本地回退 config。"""
+    email = _config_email()
+    host = os.environ.get("SMTP_HOST") or email.get("smtp_host")
+    port = os.environ.get("SMTP_PORT") or str(email.get("smtp_port") or "")
+    user = os.environ.get("SMTP_USER") or email.get("smtp_user")
+    pwd = os.environ.get("SMTP_PASS") or email.get("smtp_pass")
+    to = os.environ.get("MAIL_TO") or email.get("mail_to")
+    return host, port, user, pwd, to
+
+
+def send_email(subject, body):
+    """发送邮件；SMTP 未配置或发送失败返回 False。"""
+    host, port, user, pwd, to = _resolve_smtp()
     if not all([host, port, user, pwd, to]):
-        print("ERROR: SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/MAIL_TO 未全部配置，无法发邮件")
+        print("ERROR: 邮件 SMTP 未配置（本地需 config.json 的 email 段，云端需 SMTP_* Secrets）")
         return False
     msg = MIMEText(body, "plain", "utf-8")
     msg["Subject"] = Header(subject, "utf-8")
@@ -59,12 +67,17 @@ def _send(subject, body):
 
 
 def main():
-    status = _load_status()
+    """云端入口：读取 cloud_status.json，有错误才发邮件。"""
     run_url = os.environ.get("RUN_URL", "")
+    try:
+        with open(STATUS_FILE, encoding="utf-8") as f:
+            status = json.load(f)
+    except Exception:
+        status = None
     push_date = (status or {}).get("push_date", "?")
     if status is None:
         subject = "每日推送 · 云端工作流提前失败"
-        body = "云端采集工作流在生成结果前就失败了（依赖安装/网络等），请查看 Actions 日志。\n"
+        body = "云端采集工作流在生成结果前就失败了（依赖安装/网络等），请查看 Actions 日志。"
     elif status.get("errors"):
         errs = status["errors"]
         lines = [f"推送日期：{push_date}", ""]
@@ -79,7 +92,7 @@ def main():
         return
     if run_url:
         body += f"\n运行链接：{run_url}"
-    if not _send(subject, body):
+    if not send_email(subject, body):
         sys.exit(1)
 
 

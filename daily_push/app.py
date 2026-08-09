@@ -56,6 +56,18 @@ def create_app(config_path=None):
             result = collect_once()
             with _state_lock:
                 _state["result"] = result
+            errs = {k: v.get("error") for k, v in result.items()
+                    if isinstance(v, dict) and "error" in v}
+            if errs:
+                try:
+                    from tools.notify_email import send_email
+                    lines = [f"时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                             "失败环节：本地 · 采集（网页手动触发）", ""]
+                    for k, v in errs.items():
+                        lines.append(f"· {k}: {v}")
+                    send_email("每日推送 · 本地采集失败", "\n".join(lines))
+                except Exception:
+                    pass
         except Exception as e:
             with _state_lock:
                 _state["error"] = str(e)

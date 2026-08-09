@@ -4,7 +4,10 @@
     python start.py            # 启动并执行一次采集
     python start.py --no-collect  # 只启动服务（网页），不手动采集
 
-采集出错时：在桌面生成 collect_error.txt 并自动弹出（每天最多弹一次）；
+失败处理：
+    - 采集失败：发邮件（本地 · 采集失败）并每 5 分钟耐心重试，网络恢复后自动补上；
+    - 推送失败：发邮件（本地 · 推送失败）并后台每 60 秒重试直到成功；
+    - 不再桌面弹窗，全部统一邮件通知并标明失败环节。
 服务就绪后：自动打开浏览器到仪表盘。
 """
 import os
@@ -24,15 +27,20 @@ from daily_push.collector import collect_once
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 NODE_SERVER_JS = os.path.join(PROJECT_DIR, "netease_server.js")
 
-ERROR_TXT = "collect_error.txt"
-ERROR_MARKER = ".collect_error_popped"
+COLLECT_RETRY_INTERVAL = 300  # 采集失败后耐心重试间隔（秒）
+PUSH_RETRY_INTERVAL = 60      # 推送失败后后台重试间隔（秒）
 
 
-def _error_dir():
-    desktop = os.path.join(os.path.expanduser("~"), "Desktop")
-    if os.path.isdir(desktop):
-        return desktop
-    return os.path.join(PROJECT_DIR, "data")
+def _send_mail(subject, body):
+    """发邮件；失败仅打印日志，不影响主流程。"""
+    try:
+        from tools.notify_email import send_email
+        ok = send_email(subject, body)
+        print(f"[mail] {'sent' if ok else 'SEND FAILED'}: {subject}")
+        return ok
+    except Exception as e:
+        print(f"[mail] ERROR {e}")
+        return False
 
 
 def _collect_errors(result):
@@ -43,52 +51,17 @@ def _collect_errors(result):
     return errs
 
 
-def _report_errors(errs):
+def _report_errors(errs, stage="采集"):
+    """本地失败统一发邮件（不再桌面弹窗）。stage 标明失败环节。"""
     if not errs:
         return
-    d = _error_dir()
-    os.makedirs(d, exist_ok=True)
-    txt = os.path.join(d, ERROR_TXT)
-    marker = os.path.join(d, ERROR_MARKER)
-    lines = [
-        "每日推送 · 采集出错通知",
-        f"时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        "以下来源采集失败：",
-    ]
+    today = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    lines = [f"时间：{today}", f"失败环节：本地 · {stage}", ""]
     for k, v in errs.items():
-        lines.append(f"  · {k}: {v}")
+        lines.append(f"· {k}: {v}")
     lines.append("")
-    lines.append("多半是 Cookie / 登录态过期，请更新 config.json 后重启。")
-    try:
-        with open(txt, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines) + "\n")
-    except Exception:
-        return
-    today = datetime.now().strftime("%Y-%m-%d")
-    popped = ""
-    try:
-        with open(marker, "r", encoding="utf-8") as f:
-            popped = f.read().strip()
-    except Exception:
-        pass
-    if popped != today:
-        try:
-            with open(marker, "w", encoding="utf-8") as f:
-                f.write(today)
-            os.startfile(txt)
-        except Exception:
-            pass
-
-
-def _clear_error_report():
-    d = _error_dir()
-    for name in (ERROR_TXT, ERROR_MARKER):
-        try:
-            p = os.path.join(d, name)
-            if os.path.exists(p):
-                os.remove(p)
-        except Exception:
-            pass
+    lines.append("脚本会在后台耐心重试，网络/登录态恢复后自动补上。")
+    _send_mail(f"每日推送 · 本地{stage}失败", "\n".join(lines))
 
 
 def _port_open(host, port):
@@ -136,36 +109,88 @@ def ensure_netease_api():
     print("[start] WARNING: NeteaseCloudMusicApi did not come up in time")
 
 
-def run_collect():
-    """Collect all sources (wrapped in a daemon thread when invoked from CLI)."""
+def run_collect(stop_at=None):
+    """采集 -> 导出 -> 推送。失败则耐心重试直到成功（网络可能稍后才通）。
+
+    stop_at 不为空时，重试到该时刻即放弃（避免阻塞下一次定时采集）。
+    """
     print(f"[collect] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} starting...")
-    try:
-        result = collect_once()
-        errs = _collect_errors(result)
-        if errs:
+    reported = False
+    while True:
+        try:
+            result = collect_once()
+            errs = _collect_errors(result)
+            if not errs:
+                print(f"[collect] done push_date={result.get('push_date')}")
+                _export_and_push()
+                if reported:
+                    print("[collect] 网络/登录态恢复，重试成功")
+                return
             print(f"[collect] errors: {errs}")
-            _report_errors(errs)
-        else:
-            _clear_error_report()
-        print(f"[collect] done push_date={result.get('push_date')}")
-        _export_and_push()
-    except Exception as e:
-        print(f"[collect] ERROR {e}")
-        _report_errors({"collect": str(e)})
+            if not reported:
+                _report_errors(errs)
+                reported = True
+        except Exception as e:
+            print(f"[collect] ERROR {e}")
+            if not reported:
+                _report_errors({"collect": str(e)})
+                reported = True
+        if stop_at and datetime.now() >= stop_at:
+            print("[collect] give up this cycle (next scheduled run reached)")
+            return
+        print(f"[collect] retry in {COLLECT_RETRY_INTERVAL}s...")
+        time.sleep(COLLECT_RETRY_INTERVAL)
 
 
 def _export_and_push():
+    """导出站点并推送。推送失败：发邮件 + 后台每 60s 重试直到成功。"""
     try:
         from daily_push.export_site import export_site, push_site
         path = export_site()
-        pushed = push_site()
-        print(f"[site] exported {path}" + (f" -> {pushed}" if pushed else " (no repo configured)"))
+        try:
+            pushed = push_site()
+            print(f"[site] exported {path}" + (f" -> {pushed}" if pushed else " (no repo configured)"))
+        except Exception as e:
+            print(f"[site] push failed: {e}; will retry in background")
+            _report_errors({"推送": f"本地已导出，但推送 GitHub 失败（云端站点会缺本地数据，如公众号 mp）：{e}"},
+                           stage="推送")
+            _start_push_retry()
     except Exception as e:
         print(f"[site] export/push failed: {e}")
+        _report_errors({"导出": str(e)}, stage="导出")
+
+
+_push_retry_lock = threading.Lock()
+_push_retry_started = False
+
+
+def _start_push_retry():
+    """后台持续重推 site/index.html，直到成功（网络恢复后自动补上）。"""
+    global _push_retry_started
+    with _push_retry_lock:
+        if _push_retry_started:
+            return
+        _push_retry_started = True
+
+    def worker():
+        global _push_retry_started
+        from daily_push.export_site import export_site, push_site
+        while True:
+            time.sleep(PUSH_RETRY_INTERVAL)
+            try:
+                export_site()
+                pushed = push_site()
+                print(f"[site] background push retry succeeded -> {pushed}")
+                return
+            except Exception as e:
+                print(f"[site] background push retry failed: {e}")
+
+    threading.Thread(target=worker, daemon=True).start()
 
 
 def scheduler_thread(push_time):
-    """Run collect once daily at push_time (HH:MM)."""
+    """Run collect once daily at push_time (HH:MM), retrying patiently until
+    the next scheduled run if the network is down (e.g. hotspot not connected)."""
     hh, mm = (int(x) for x in push_time.split(":"))
     print(f"[sched] daily collect scheduled at {hh:02d}:{mm:02d}")
     while True:
@@ -174,7 +199,7 @@ def scheduler_thread(push_time):
         if target <= now:
             target += timedelta(days=1)
         time.sleep((target - now).total_seconds())
-        run_collect()
+        run_collect(stop_at=target + timedelta(days=1))
 
 
 def open_dashboard(host, port):

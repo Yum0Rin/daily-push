@@ -26,6 +26,13 @@
   "max_songs": 5,
   "port": 5000,
   "data_dir": "data",
+  "email": {
+    "smtp_host": "smtp.qq.com",
+    "smtp_port": 465,
+    "smtp_user": "<QQ号>@qq.com",
+    "smtp_pass": "<SMTP授权码>",
+    "mail_to": "<收件邮箱>"
+  },
   "site": {
     "repo": "<GitHub用户名>/daily-push",
     "branch": "main",
