@@ -1,0 +1,69 @@
+name: cookie-repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: "需要更新的来源，逗号分隔：netease,bilibili"
+        required: true
+        type: string
+      ref:
+        description: "报错邮件主题里的 ref 标记"
+        required: true
+        type: string
+      timeout_min:
+        description: "最多等待回复的分钟数（默认 360）"
+        required: false
+        type: string
+        default: "360"
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Shanghai
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: code
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: |
+          pip install requests
+          npm install --omit=dev --retry=5
+
+      - name: Start Netease API
+        run: |
+          node netease_server.js > netease.out.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -s -o /dev/null http://localhost:3000; then echo "api up"; break; fi
+            sleep 1
+          done
+
+      - name: Poll mailbox for reply
+        env:
+          SOURCES: ${{ github.event.inputs.sources }}
+          REF: ${{ github.event.inputs.ref }}
+          REPLY_TIMEOUT_MIN: ${{ github.event.inputs.timeout_min }}
+          GH_TOKEN: ${{ secrets.REPO_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python tools/cookie_repair_cloud.py
