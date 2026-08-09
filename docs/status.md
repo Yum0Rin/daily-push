@@ -4,7 +4,7 @@
 
 ## 可用能力 ✅
 
-- 网易云日推（5首）—— 稳定，含 top1 热评；`netease.mode=api`（NeteaseCloudMusicApi + Cookie）
+- 网易云日推（5首）—— 稳定，含 top1 热评；本地 `netease.mode=ncm-cli`（官方接口，免 Cookie），云端用 `api`
 - B站 UP动态 —— 走「关注动态」接口，1 次请求拉最近视频，快且轻
 - 公众号推文（标题+链接+作者）—— 稳定，今日可取 ~10 条
 - Flask 网页 + 开机自动采集（另有 07:30 兜底定时）
@@ -51,6 +51,9 @@
 15. 2026-08-09：新增「回复邮件自动更新 Cookie」：`cookie-repair.yml` 云端每 10 分钟
     轮询（最多 6h）→ 验证 → `gh secret set` 更新 Secrets；本地重试时读回复写回 config.json；
     报错邮件主题带 `ref=日期-来源` 标记。
+16. 2026-08-09：网易云本地切回 `ncm-cli`（官方接口）并修复断网规则——ncm-cli 远端同步失败
+    时的「本地缓存回退」现在被当作硬错误，不再用过期数据冒充当天；ncm-cli 登录失效提示手动
+    `ncm-cli login`，邮件自动修 Cookie 仅对 `api` 模式生效。
 
 ## 待办（用户可选）
 

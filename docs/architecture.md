@@ -85,7 +85,7 @@
 - 主题标明环节：`每日推送 · 本地采集失败 / 本地推送失败 / 云端采集失败 / 云端工作流提前失败`。
 - 邮件里列出的错误来源即对应网易云 / B站 / 公众号。
 
-**Cookie 自动修复**（报错邮件 → 回复 → 自动更新，云端 + 本地双通道）：
+**Cookie 自动修复**（报错邮件 → 回复 → 自动更新，云端 + 本地双通道，**仅 `api` 模式**）：
 1. 采集报错若属 cookie/登录类（网易云 `MUSIC_U`、B站 `SESSDATA`），
    报错邮件主题追加 `ref=日期-来源` 标记（如 `ref=2026-08-09-netease`）。
 2. 云端 `cookie-repair.yml`（`workflow_dispatch`，需 Secrets `REPO_TOKEN`）被触发后，
@@ -100,6 +100,11 @@
 
 触发方：云端 `daily-collect.yml` 出错后由 `tools/trigger_cookie_repair.py` 触发；
 本地 `start.py` 用本机 `gh`（需 `repo`+`workflow` 权限）触发。
+`netease.mode=ncm-cli` 时网易云登录失效**不会**触发邮件轮询（只能手动 `ncm-cli login`）。
+
+**网易云 ncm-cli 断网规则**：ncm-cli 远端同步失败时默认「使用本地缓存」返回过期数据，
+`_NeteaseNcmCli._cli()` 检测到 `远端同步失败 / 使用本地缓存` 即抛出 `NeteaseError`，
+拒绝用昨天/缓存的推荐冒充当天（断网时走 start.py 的耐心重试，网络恢复后补当天）。
 
 ## start.py 说明
 

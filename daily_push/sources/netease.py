@@ -107,13 +107,20 @@ class _NeteaseNcmCli:
             )
         except subprocess.TimeoutExpired:
             raise NeteaseError("ncm-cli timed out")
+        combined = (r.stderr or "") + (r.stdout or "")
         if r.returncode != 0:
             msg = (r.stderr or r.stdout or "").strip()
             if "请先登录" in msg or "未登录" in msg or "login" in msg.lower():
-                raise NeteaseError("ncm-cli 未登录，请先执行 ncm-cli login")
+                raise NeteaseError("ncm-cli 登录态失效，请手动执行 ncm-cli login"
+                                   "（邮件自动补 Cookie 仅适用于 api 模式，ncm-cli 需手动登录）")
             if "API key" in msg or "appId" in msg:
                 raise NeteaseError("ncm-cli API key 未配置，请执行 ncm-cli configure")
             raise NeteaseError(f"ncm-cli failed: {msg[:200]}")
+        # 断网规则：ncm-cli 远端同步失败时会「使用本地缓存」返回过期数据，
+        # 这里检测到缓存回退即当作硬错误，绝不用昨天的推荐冒充当天数据。
+        if any(k in combined for k in ("远端同步失败", "使用本地缓存", "本地缓存")):
+            raise NeteaseError("ncm-cli 远端同步失败（网络异常），拒绝使用本地缓存，"
+                               "请检查网络后重试")
         try:
             return json.loads(r.stdout)
         except ValueError:

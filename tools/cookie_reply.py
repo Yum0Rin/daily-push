@@ -229,9 +229,17 @@ def apply_local_config(updates):
 
 
 def is_cookie_error(source, error):
-    """判断某个来源的报错是否属于 cookie/登录失效类。"""
+    """判断某个来源的报错是否属于 cookie/登录失效类，可用「回复邮件更新 cookie」修复。
+
+    netease 仅在 api 模式（NeteaseCloudMusicApi+Cookie）下才可邮件修复；
+    ncm-cli 模式登录失效只能手动 `ncm-cli login`，不触发邮件轮询。
+    """
     if source not in ("netease", "bilibili"):
         return False
+    if source == "netease":
+        mode = (os.environ.get("NETEASE_MODE") or _config().get("netease", {}).get("mode") or "api")
+        if mode == "ncm-cli":
+            return False
     text = str(error or "")
     keys = ["cookie", "Cookie", "登录", "未登录", "登录态", "过期", "login",
             "401", "code 301", "301", "账号", "SESSDATA", "MUSIC_U"]
