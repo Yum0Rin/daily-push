@@ -66,6 +66,14 @@ def send_email(subject, body):
         return False
 
 
+def _cookie_sources(errs):
+    try:
+        from tools.cookie_reply import is_cookie_error
+        return [s for s in ("netease", "bilibili") if is_cookie_error(s, errs.get(s))]
+    except Exception:
+        return []
+
+
 def main():
     """云端入口：读取 cloud_status.json，有错误才发邮件。"""
     run_url = os.environ.get("RUN_URL", "")
@@ -86,6 +94,9 @@ def main():
         lines.append("")
         lines.append("多半是 Cookie / 登录态过期或网络问题，请更新 Secrets 后重试。")
         subject = f"每日推送 · 云端采集失败 {push_date}"
+        if _cookie_sources(errs):
+            ref = f"{push_date}-{'-'.join(_cookie_sources(errs))}"
+            subject = f"{subject} ref={ref}"
         body = "\n".join(lines)
     else:
         print("no errors, skip email")

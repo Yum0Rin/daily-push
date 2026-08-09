@@ -61,7 +61,42 @@ def _report_errors(errs, stage="采集"):
         lines.append(f"· {k}: {v}")
     lines.append("")
     lines.append("脚本会在后台耐心重试，网络/登录态恢复后自动补上。")
-    _send_mail(f"每日推送 · 本地{stage}失败", "\n".join(lines))
+    subject = f"每日推送 · 本地{stage}失败"
+    if stage == "采集":
+        try:
+            from tools.cookie_reply import is_cookie_error
+            from tools.trigger_cookie_repair import trigger
+            cookie_sources = [s for s in ("netease", "bilibili") if is_cookie_error(s, errs.get(s))]
+            if cookie_sources:
+                ref = f"{datetime.now().strftime('%Y-%m-%d')}-{'-'.join(cookie_sources)}"
+                subject = f"{subject} ref={ref}"
+                trigger(cookie_sources, datetime.now().strftime("%Y-%m-%d"))
+        except Exception as e:
+            print(f"[cookie-repair] 本地触发云端轮询失败: {e}")
+    _send_mail(subject, "\n".join(lines))
+
+
+def _try_apply_reply_cookie(errs):
+    """本地自愈：从邮箱回复中读取新 cookie 并写回 config.json，下次重试直接生效。"""
+    try:
+        from tools.cookie_reply import (is_cookie_error, imap_find_reply,
+                                        extract_cookies, apply_local_config)
+        sources = [s for s in ("netease", "bilibili") if is_cookie_error(s, errs.get(s))]
+        if not sources:
+            return
+        ref = f"{datetime.now().strftime('%Y-%m-%d')}-{'-'.join(sources)}"
+        body = imap_find_reply(ref, since_days=2)
+        if not body:
+            print(f"[cookie-reply] 邮箱暂无回复（ref={ref}）")
+            return
+        cookies = extract_cookies(body, sources)
+        if cookies:
+            changed = apply_local_config(cookies)
+            print(f"[cookie-reply] 已应用回复中的新 cookie: {changed}")
+        else:
+            print("[cookie-reply] 回复解析失败")
+    except Exception as e:
+        print(f"[cookie-reply] ERROR {e}")
 
 
 def _port_open(host, port):
@@ -130,6 +165,7 @@ def run_collect(stop_at=None):
             if not reported:
                 _report_errors(errs)
                 reported = True
+            _try_apply_reply_cookie(errs)
         except Exception as e:
             print(f"[collect] ERROR {e}")
             if not reported:

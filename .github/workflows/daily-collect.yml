@@ -66,6 +66,13 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: python tools/notify_email.py
 
+      - name: Trigger cookie repair if login errors
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.REPO_TOKEN }}
+          PYTHONIOENCODING: utf-8
+        run: python tools/trigger_cookie_repair.py
+
       - name: Commit site to main (Pages)
         run: |
           git config user.name "daily-push bot"
