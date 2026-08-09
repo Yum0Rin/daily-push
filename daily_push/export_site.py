@@ -49,8 +49,13 @@ def _published_days_from_remote(cfg):
 
 
 def _merge_published(storage, days):
-    """Write published days into local DB so export keeps full history."""
+    """Write published days into local DB so export keeps full history.
+
+    只补「本地缺失的日期」，不覆盖本地已有的（本地可能更全，如本地采集的 mp）。
+    """
     for d, fields in days.items():
+        if storage.has(d):
+            continue
         if not isinstance(fields, dict):
             continue
         storage.save(d, netease=fields.get("netease"),

@@ -51,8 +51,13 @@ def _published_days():
 
 
 def _seed_published(storage, days):
-    """Write published days into local DB so export keeps history + local mp."""
+    """Write published days into local DB so export keeps history + local mp.
+
+    只补「本地缺失的日期」，不覆盖本地已有的（避免旧发布数据盖掉更新更全的本地数据）。
+    """
     for d, fields in days.items():
+        if storage.has(d):
+            continue
         if not isinstance(fields, dict):
             continue
         storage.save(
