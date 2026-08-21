@@ -449,6 +449,8 @@ function render(data) {
     (x && typeof x === "object" && !Array.isArray(x) && x.error);
   const any = hasData(data.netease) || hasData(data.bilibili) || hasData(data.mp);
   els.emptyState.style.display = any ? "none" : "";
+  // 整日无任何记录（显示「该日暂无推送记录」）时，不再显示公众号说明卡片，避免重复提示
+  if (!any) els.cardMp.style.display = "none";
 
   renderSummary(data);
 }
