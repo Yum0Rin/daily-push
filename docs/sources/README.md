@@ -14,9 +14,15 @@
 }
 ```
 数据来源可通过 config `netease.mode` 切换：
-- `ncm-cli`（本地现用）：走官方开放平台接口，通过本机已登录的 `ncm-cli` 命令行获取每日推荐（`recommend daily`）与热评（`comment list-hot`），不需 Cookie，不需 node 代理。需先 `ncm-cli login` 登录一次。
+- `api`（本地现用，默认）：走 NeteaseCloudMusicApi（:3000 node 进程）+ Cookie，通过 `/recommend/songs` 和 `/comment/music`。
+- `ncm-cli`（备用）：走官方开放平台接口，通过本机已登录的 `ncm-cli` 命令行获取每日推荐（`recommend daily`）与热评（`comment list-hot`），不需 Cookie，不需 node 代理。需先 `ncm-cli login` 登录一次。
   **断网规则**：ncm-cli 远端同步失败时会「使用本地缓存」返回过期数据，采集器检测到缓存回退即当作硬错误、拒绝使用，绝不拿昨天的推荐冒充当天。
-- `api`（云端用）：走 NeteaseCloudMusicApi（:3000 node 进程）+ Cookie，通过 `/recommend/songs` 和 `/comment/music`。
+
+> **2026-08-10 起本地已切回 `api` 模式**：`ncm-cli` 官方 CLI 目前（v0.1.6）
+> 的命令树里**没有 `recommend` 子命令**（只有 play/search/playlist/queue 等），
+> 代码调用 `ncm-cli recommend daily` 会报 `unknown command 'recommend'`，导致网易云采集
+> 持续失败、页面只剩 B站/公众号。故本地回退到验证过的 `api`（Cookie + :3000 Node 代理）方案；
+> 若未来 ncm-cli 支持日推命令可再切回。
 
 Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源`，直接**回复该邮件**、正文第一行贴新 Cookie
 即可自动更新（云端更新 Secrets + 本地写回 config.json），详见 architecture.md「失败通知与 Cookie 自动修复」。

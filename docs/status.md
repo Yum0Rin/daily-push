@@ -4,7 +4,7 @@
 
 ## 可用能力 ✅
 
-- 网易云日推（5首）—— 稳定，含 top1 热评；本地 `netease.mode=ncm-cli`（官方接口，免 Cookie），云端用 `api`
+- 网易云日推（5首）—— 稳定，含 top1 热评；本地 `netease.mode=api`（Cookie+:3000 Node 代理），云端同用 `api`；`ncm-cli` 因无 `recommend` 命令已降为备用
 - B站 UP动态 —— 走「关注动态」接口，1 次请求拉最近视频，快且轻
 - 公众号推文（标题+链接+作者）—— 稳定，今日可取 ~10 条
 - Flask 网页 + 开机自动采集（另有 07:30 兜底定时）
@@ -58,6 +58,9 @@
     （`wechat.mp_cutoff_hour`，不再用固定 7 天），当天更晚的新文章也能采到；
     ②动态发现全部 `biz_message_*.db`，避免新库漏采；
     ③前端：云端静态站 mp 为空时显示权限说明卡片，不再整个消失。
+18. 2026-08-10：本地网易云从 `ncm-cli` 切回 `api`——ncm-cli v0.1.6 命令树无
+    `recommend` 子命令，`recommend daily` 报 `unknown command 'recommend'`，采集持续失败；
+    `api` 模式（Cookie + :3000）验证可用。
 
 ## 待办（用户可选）
 

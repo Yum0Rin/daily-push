@@ -148,16 +148,17 @@ function renderBili(data) {
 function renderArticles(data) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
   const empty = !Array.isArray(data) || data.length === 0;
-  els.cardMp.style.display = (isErr || (Array.isArray(data) && data.length > 0) || (DAYS && empty)) ? "" : "none";
+  els.cardMp.style.display = (isErr || (Array.isArray(data) && data.length > 0) || empty) ? "" : "none";
   if (isErr) {
     els.mpList.innerHTML = errBlock("mp", data.error);
     return;
   }
   if (empty) {
-    // 云端（静态站）不采集公众号，mp 常为空 → 显示权限说明，避免整个卡片消失
+    // mp 为空时也保留卡片：云端（静态站）显示「仅本机采集」说明；
+    // 本地则提示「今日暂无新推文」，避免公众号模块在网页上整个消失
     els.mpList.innerHTML = DAYS
       ? `<div class="module-note">📰 公众号推文仅在本机（微信解密环境）采集，云端不采集，故此处为空。</div>`
-      : "";
+      : `<div class="module-note">📰 今日暂无新公众号推文。</div>`;
     return;
   }
   els.mpList.innerHTML = data.map((a) => `

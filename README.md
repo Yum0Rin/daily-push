@@ -76,7 +76,7 @@ daily-push/
 | `daily_push/config.py` | 读取 `config.json` 并补齐默认值 |
 | `daily_push/storage.py` | SQLite 存储：按 `push_date` 一行，**按日合并**（采集失败不覆盖当天旧值） |
 | `daily_push/collector.py` | 聚合编排：按序采集各来源 → 跨天去重 → 写库；`push_date` 固定北京时间（UTC+8） |
-| `sources/netease.py` | 网易云日推 Top N（含 top1 热评）；`mode=ncm-cli`（本地现用，官方接口，断网拒绝缓存回退）或 `api`（NeteaseCloudMusicApi+Cookie，云端用） |
+| `sources/netease.py` | 网易云日推 Top N（含 top1 热评）；`mode=api`（本地现用，NeteaseCloudMusicApi+Cookie）或 `ncm-cli`（官方接口备用，当前版本无 recommend 命令） |
 | `sources/bilibili.py` | B站关注动态（WBI 签名 + 412/HTML 防风控退避重试） |
 | `sources/wechat_article.py` | 公众号推文标题+链接+作者，读微信本地解密库 |
 | `daily_push/app.py` | Flask 仪表盘 + `/api/*` 数据接口 + 异步采集接口（失败也发邮件） |

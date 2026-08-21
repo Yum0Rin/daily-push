@@ -102,6 +102,11 @@
 本地 `start.py` 用本机 `gh`（需 `repo`+`workflow` 权限）触发。
 `netease.mode=ncm-cli` 时网易云登录失效**不会**触发邮件轮询（只能手动 `ncm-cli login`）。
 
+> **本地 netease.mode 当前为 `api`**：2026-08-10 起从 `ncm-cli` 切回。原因：本机 `ncm-cli`
+> v0.1.6 命令树里没有 `recommend` 子命令，`ncm-cli recommend daily` 报
+> `unknown command 'recommend'`，导致网易云采集持续失败。`api` 模式用 Cookie +
+> :3000 NeteaseCloudMusicApi 已验证可用。`ncm-cli` 相关实现（`_NeteaseNcmCli`）保留作备用。
+
 **网易云 ncm-cli 断网规则**：ncm-cli 远端同步失败时默认「使用本地缓存」返回过期数据，
 `_NeteaseNcmCli._cli()` 检测到 `远端同步失败 / 使用本地缓存` 即抛出 `NeteaseError`，
 拒绝用昨天/缓存的推荐冒充当天（断网时走 start.py 的耐心重试，网络恢复后补当天）。
