@@ -20,6 +20,17 @@
 
 > 注意：`config.json` 是敏感文件（Cookie），**绝不可提交**，已在 .gitignore 中。
 
+## 分支与提交约定（重要）
+
+- **本地分支就是 `code`**，跟踪 `origin/code`。改代码后直接 `git add -A && git commit && git push` 即可。
+  **不要**新建/改名到 `master`，`git push` 也**不要**指定 `master`。
+- 远程分支分工：
+  - `code`：代码分支，云端每天定时采集 checkout 它（`daily-collect.yml`、`cookie-repair.yml`）
+  - `main`：GitHub Pages 分支，云端每天自动提交 `index.html`，本地不要手动操作
+  - 旧的 `master` 分支已删除（废弃，勿重建）
+- 改前端后记得重新导出静态站让网页同步：`python -c "from daily_push.export_site import export_site, push_site; export_site(); push_site()"`
+- 提交前检查 `git status`，`config.json` / `data/` / `site/` 已被 gitignore，不应出现在改动里。
+
 ## 常用命令
 
 - 手动采集一次：`python -m daily_push`
