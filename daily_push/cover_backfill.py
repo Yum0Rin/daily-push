@@ -114,6 +114,87 @@ def backfill_covers(storage, cfg, days=7, interval=1.0, log=print):
     return stats
 
 
+def backfill_wechat_covers(storage, cfg, since_days=180, log=print):
+    """Backfill covers on stored 公众号 articles from the local WeChat DB (no network).
+
+    Articles whose cover cannot be found are removed (per user request).  If no
+    covers were scanned at all (e.g. WeChat env unavailable), removal is skipped.
+    """
+    from .backfill import promote_reserve
+    from .sources.wechat_article import WeChatArticleCollector
+    max_articles = int((cfg.get("wechat") or {}).get("max_articles", 12))
+    since = int(time.time()) - max(0, since_days) * 86400
+    cmap = WeChatArticleCollector(cfg).cover_map(since_ts=since)
+    if not cmap:
+        log("[cover] wechat: 未扫描到封面，跳过删除")
+        return {"wechat_fixed": 0, "wechat_removed": 0, "wechat_covers": 0}
+
+    fixed = 0
+    removed = 0
+    for d in storage.list_dates():
+        row = storage.get(d)
+        mp = (row or {}).get("mp")
+        if not isinstance(mp, list):
+            continue
+        kept = []
+        changed = False
+        for a in mp:
+            if not isinstance(a, dict):
+                kept.append(a)
+                continue
+            if not a.get("pic") and a.get("url") in cmap:
+                a["pic"] = cmap[a["url"]]
+                fixed += 1
+                changed = True
+            if not a.get("pic"):
+                removed += 1
+                changed = True  # 找不到封面 -> 删除
+            else:
+                kept.append(a)
+        if changed:
+            storage.save(d, netease=row.get("netease"), bilibili=row.get("bilibili"),
+                         mp=promote_reserve(kept, max_articles), overwrite=True)
+    log(f"[cover] wechat: fixed={fixed} removed={removed} covers={len(cmap)}")
+    return {"wechat_fixed": fixed, "wechat_removed": removed, "wechat_covers": len(cmap)}
+
+
+def backfill_wechat_history(storage, cfg, since_days=180, log=print):
+    """Fill each day's 公众号 list up to ``max_articles`` from the local WeChat DB."""
+    import datetime
+    from .sources.wechat_article import WeChatArticleCollector
+    max_articles = int((cfg.get("wechat") or {}).get("max_articles", 12))
+    since = int(time.time()) - max(0, since_days) * 86400
+    arts = WeChatArticleCollector(cfg).scan_all(since_ts=since)
+    if not arts:
+        log("[fill] wechat history: 无数据，跳过")
+        return {"wechat_filled": 0}
+    tz = datetime.timezone(datetime.timedelta(hours=8))
+    by_date = {}
+    for a in arts:
+        d = datetime.datetime.fromtimestamp(a["timestamp"], tz).date().isoformat()
+        by_date.setdefault(d, []).append(a)
+
+    filled = 0
+    for d in storage.list_dates():
+        row = storage.get(d)
+        if not row:
+            continue
+        existing = row.get("mp") or []
+        seen = {a.get("url") for a in existing if isinstance(a, dict)}
+        extra = [a for a in by_date.get(d, []) if a["url"] not in seen]
+        if not extra:
+            continue
+        merged = list(existing) + extra
+        merged.sort(key=lambda x: (x.get("notify", False), -x["timestamp"]))
+        merged = merged[:max_articles]
+        if len(merged) > len(existing):
+            filled += len(merged) - len(existing)
+            storage.save(d, netease=row.get("netease"), bilibili=row.get("bilibili"),
+                         mp=merged, overwrite=True)
+    log(f"[fill] wechat history: filled={filled}")
+    return {"wechat_filled": filled}
+
+
 def main():
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 7
     interval = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0
@@ -124,6 +205,11 @@ def main():
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     storage = Storage(os.path.join(base, cfg.get("data_dir", "data")))
     stats = backfill_covers(storage, cfg, days=days, interval=interval)
+    try:
+        stats.update(backfill_wechat_covers(storage, cfg))
+        stats.update(backfill_wechat_history(storage, cfg))
+    except Exception as e:
+        print(f"[cover/fill] wechat skipped: {e}")
     storage.close()
     print(f"[cover] done: {stats}")
 

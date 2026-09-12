@@ -67,8 +67,9 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
 - `bilibili.sessdata`：登录 Cookie（动态接口需 WBI 签名 + 登录态）。
 
 **封面回填 / 失效清理**：`python -m daily_push.cover_backfill [days] [interval]` 为历史补封面
-（网易云 `http→https`；B站逐条查 `x/web-interface/view`），并把返回 620xx / -404 / -403 的
-**失效 / 私密视频删除**；默认最近 7 天，`0`=全部，逐条 sleep 控频。
+（网易云 `http→https`；B站逐条查 `x/web-interface/view`；公众号读本地微信库），
+并把返回 620xx / -404 / -403 的**失效 / 私密视频删除**、找不到封面的公众号删除；
+同时把历史公众号**补到 `wechat.max_articles`（现 12/天）**；默认最近 7 天，`0`=全部，逐条 sleep 控频。
 
 ## ~~QQ群消息~~ / ~~微信群消息~~（已移除）
 
@@ -83,6 +84,7 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
   "title": "推文标题",
   "url": "http://mp.weixin.qq.com/s?...",   // 外链，点击跳转
   "author": "公众号账号名",
+  "pic": "封面图URL（appmsg thumburl/cover_16_9，统一 https）",
   "notify": false,                          // true=服务通知（取餐/优惠券/快递等）
   "time": "08-07 15:20",
   "timestamp": 1754623229

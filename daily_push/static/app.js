@@ -144,13 +144,13 @@ function renderBili(data) {
   els.ups.innerHTML = list.map((u) => {
     const pic = (u.pic || "").replace(/^http:/, "https:");
     return `
-      <li class="vcard">
-        ${pic ? `<a class="vthumb" href="${esc(u.url)}" target="_blank" rel="noopener">
-          <img src="${esc(pic)}" loading="lazy" onerror="this.remove()">
-        </a>` : ""}
-        <div class="vinfo">
-          <a class="vtitle" href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
-          <div class="vmeta">
+      <li class="gcard">
+        <a class="gthumb" href="${esc(u.url)}" target="_blank" rel="noopener">
+          ${pic ? `<img src="${esc(pic)}" loading="lazy" onerror="this.remove()">` : ""}
+        </a>
+        <div class="ginfo">
+          <a class="gtitle" href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
+          <div class="gmeta">
             ${u.author ? `<span class="author">${esc(u.author)}</span>` : ""}
             ${u.created ? `<span class="time">${esc(fmtCreated(u.created))}</span>` : ""}
           </div>
@@ -176,18 +176,22 @@ function renderArticles(data) {
       : `<div class="module-note">📰 今日暂无新公众号推文。</div>`;
     return;
   }
-  els.mpList.innerHTML = list.map((a) => `
-    <li${a.notify ? ' class="notify"' : ""}>
-      <div class="ainfo">
-        <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>
-        ${a.author ? `<span class="author">${esc(a.author)}</span>` : ""}
-      </div>
-      <div class="aside">
-        ${a.notify ? `<span class="tag">通知</span>` : ""}
-        ${a.time ? `<span class="time">${esc(a.time)}</span>` : ""}
-      </div>
-    </li>`
-  ).join("");
+  els.mpList.innerHTML = list.map((a) => {
+    const pic = (a.pic || "").replace(/^http:/, "https:");
+    return `
+      <li class="gcard${a.notify ? " notify" : ""}">
+        <a class="gthumb" href="${esc(a.url)}" target="_blank" rel="noopener">
+          ${pic ? `<img src="${esc(pic)}" loading="lazy" onerror="this.remove()">` : ""}
+        </a>
+        <div class="ginfo">
+          <a class="gtitle" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>
+          <div class="gmeta">
+            ${a.author ? `<span class="author">${esc(a.author)}</span>` : ""}
+            <span class="time">${a.notify ? "通知 · " : ""}${esc(a.time || "")}</span>
+          </div>
+        </div>
+      </li>`;
+  }).join("");
 }
 
 function render(data) {

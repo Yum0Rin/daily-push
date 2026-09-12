@@ -164,56 +164,29 @@ button.stat .value { margin-top: 4px; }
 .msg-sender { color: var(--accent-2); font-weight: 600; margin-right: 6px; }
 .msg-text { color: var(--text); }
 
-.articles { margin: 0; padding: 0; list-style: none; }
-.articles li {
-  display: flex; justify-content: space-between; gap: 12px;
-  padding: 8px 0; border-bottom: 1px dashed var(--border);
-  align-items: baseline;
-}
-.articles li:last-child { border-bottom: none; }
-.articles .ainfo {
-  display: flex; flex-direction: column;
-  gap: 2px; min-width: 0; flex: 1;
-}
-.articles .author {
-  font-size: 12px; color: var(--green-deep);
-  white-space: nowrap;
-}
-.articles .aside {
-  display: flex; align-items: baseline; gap: 8px;
-  flex-shrink: 0;
-}
-.articles .tag {
-  font-size: 11px; color: var(--muted);
-  border: 1px solid var(--border); border-radius: 10px;
-  padding: 0 6px; flex-shrink: 0;
-}
-.articles li.notify a { color: var(--muted); font-weight: 400; }
-.articles a { text-decoration: none; color: var(--text); font-weight: 500; }
-.articles a:hover { color: var(--accent-2); text-decoration: underline; }
-.articles .time { color: var(--muted); font-size: 12px; flex-shrink: 0; }
-
-/* B站视频：等高网格，窄屏 2 列、宽屏 3 列（最多 3、最少 2） */
-.videos {
+/* 卡片网格（B站视频 / 公众号推文共用）：窄屏 2 列、宽屏 3 列（最多 3、最少 2） */
+.cardgrid {
   margin: 0; padding: 0; list-style: none;
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
 }
-@media (min-width: 620px) { .videos { grid-template-columns: repeat(3, 1fr); } }
-.videos .vcard {
+@media (min-width: 620px) { .cardgrid { grid-template-columns: repeat(3, 1fr); } }
+.cardgrid .gcard {
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--card-2); border: 1px solid var(--border); border-radius: 10px;
 }
-.videos .vthumb { display: block; background: var(--card); }
-.videos .vthumb img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
-.videos .vinfo { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; }
-.videos .vtitle {
+.cardgrid .gcard.notify { opacity: .65; }
+.cardgrid .gthumb { display: block; aspect-ratio: 16 / 9; background: var(--card); overflow: hidden; }
+.cardgrid .gthumb img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+.cardgrid .ginfo { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; }
+.cardgrid .gtitle {
   color: var(--text); font-weight: 500; text-decoration: none;
   font-size: 13px; line-height: 1.4;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.videos .vtitle:hover { color: var(--accent-2); }
-.videos .vmeta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
-.videos .vmeta .author { color: var(--green-deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cardgrid .gtitle:hover { color: var(--accent-2); }
+.cardgrid .gmeta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
+.cardgrid .gmeta .author { color: var(--green-deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cardgrid > .module-note, .cardgrid > .module-err { grid-column: 1 / -1; }
 
 .empty { text-align: center; color: var(--muted); padding: 40px; }
 footer {

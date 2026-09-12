@@ -22,5 +22,29 @@ class WeChatExcludeTest(unittest.TestCase):
         self.assertFalse(c._is_excluded("人民日报", "今日要闻"))
 
 
+class WeChatCoverTest(unittest.TestCase):
+    def _parse(self, xml):
+        return WeChatArticleCollector._parse_appmsg(xml)
+
+    def test_cover_extracted_and_https(self):
+        xml = ("<msg><appmsg><title>T</title>"
+               "<url>https://mp.weixin.qq.com/s?x</url>"
+               "<thumburl><![CDATA[http://mmbiz.qpic.cn/a.jpg]]></thumburl>"
+               "</appmsg></msg>")
+        self.assertEqual(self._parse(xml)["pic"], "https://mmbiz.qpic.cn/a.jpg")
+
+    def test_cover_prefers_16_9(self):
+        xml = ("<msg><appmsg><title>T</title><url>https://mp.weixin.qq.com/s?x</url>"
+               "<cover_16_9><![CDATA[https://x/169.jpg]]></cover_16_9>"
+               "<thumburl><![CDATA[https://x/t.jpg]]></thumburl>"
+               "</appmsg></msg>")
+        self.assertEqual(self._parse(xml)["pic"], "https://x/169.jpg")
+
+    def test_no_cover(self):
+        xml = ("<msg><appmsg><title>T</title>"
+               "<url>https://mp.weixin.qq.com/s?x</url></appmsg></msg>")
+        self.assertEqual(self._parse(xml)["pic"], "")
+
+
 if __name__ == "__main__":
     unittest.main()
