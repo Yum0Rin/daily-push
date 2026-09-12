@@ -45,11 +45,15 @@
 
 - **匹配规则**：B站按 `author` 子串；公众号**仅按 `author`（公众号名）子串**，**不匹配标题**（`sources/wechat_article.py:_is_excluded`），避免误伤。
 - **以后**：采集时过滤；**历史 + 今天**：设置页「保存并应用到全部推送」触发异步任务
-  `tools/purge_ignored.purge_and_publish()` → 删本地库命中条目 → `export_site()` → `push_site()`（Pages）
-  → `git_publish.commit_and_push_settings()`（把 `settings.json` 推到 `code`，云端次日同源过滤）。
+  `tools/purge_ignored.purge_and_publish()` → **先 `merge_remote_history()` 把远端独有日期并入本地**
+  （否则这些日期的命中条目不会被清、还会被重新导出推回）→ 删本地库命中条目
+  （`Storage.save(overwrite=True)` 才能真正清空字段）→ `export_site(merge_remote=False)` →
+  `push_site()`（Pages）→ `git_publish.commit_and_push_settings()`（把 `settings.json` 推到 `code`，云端次日同源过滤）。
 - **只提交 settings.json**：`git_publish.py` 只 `git add/commit -- settings.json`，不碰源码与密钥；
   无变化跳过；`GIT_TERMINAL_PROMPT=0` 防卡死；有超时；失败只返回错误不抛。
-- **并发**：`app.py` 用全局 `_heavy_lock` 串行化「采集」与「清理+发布」，避免同时写 SQLite / 抢 `site/` git 仓库，冲突返回 429。
+- **并发**：`daily_push/publish_lock.py` 提供**跨进程文件锁**，采集/清理/推送/导出全部串行化
+  （含 `start.py` 的调度与后台重推线程）；Flask 路由非阻塞获取、抢不到返回 429。
+  此前只有进程内 `_heavy_lock`，`start.py` 的线程与设置页清理会并发 `git reset --hard` / SQLite 写冲突。
 
 > 完整的设置系统说明见 [settings.md](settings.md)。
 
@@ -142,8 +146,12 @@
 ## start.py 说明
 
 - `--no-collect`：只启动服务，不做首次采集。
+- **静默启动（2026-09-12）**：不再一上来就弹浏览器；**首次采集并成功推送后**才自动打开本地网页
+  （`_first_push_event`，含后台重推成功的情况）。`--no-collect` 则服务就绪即打开。
 - `_port_open()` 端口检测去重，避免重复拉起网易云 API。
-- 每日定时：`push_time`（默认 07:30）独立 daemon 线程，作为开机采集的兜底。
+- 每日定时：`push_time`（默认 07:30）独立 daemon 线程，作为开机采集的兜底；
+  **每轮重读 `settings.json`**，改完无需重启即生效。
+- 采集/推送经 `publish_lock` 跨进程锁串行化（与设置页清理任务互斥）。
 - 失败处理（统一邮件 + 耐心重试）：
   - 采集失败 → `_report_errors()` 发「本地 · 采集失败」邮件，每 5 分钟重试；
   - 推送失败 → 发「本地 · 推送失败」邮件，后台每 60 秒重试直到成功；

@@ -17,6 +17,8 @@
 - 策略 → 写 `settings.json`（「保存并应用到全部推送」会清理历史/今天、重发 Pages 并推送到 `code`）；
 - Cookie → 写 `config.json`（仅本机）；勾「同步云端」可经 `gh secret set` 写入云端 Secrets
   （需本机 `gh` 已登录，或配置 `github.token`），否则走回复邮件 / 手动改 Secrets。
+- 备份 / 还原 → 「💾 配置备份」可下载当前 `config.json`（**含密钥，仅本机保存**）或上传还原
+  （覆盖前自动生成 `.bak`）。
 
 ## 配置键参考
 

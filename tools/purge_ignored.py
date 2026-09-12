@@ -54,28 +54,33 @@ def purge(storage, cfg):
         if changed:
             storage.save(d, netease=row.get("netease"),
                          bilibili=row.get("bilibili") or None,
-                         mp=row.get("mp") or None)
+                         mp=row.get("mp") or None,
+                         overwrite=True)
     return removed
 
 
-def purge_and_publish(cfg=None):
+def purge_and_publish(cfg=None, config_path=None):
     """Remove ignored entries from ALL history/today, re-export and push Pages.
 
     Returns a stats dict: removal counts, export path, push result/error.
     Used both by the CLI and by the local settings page.
     """
-    cfg = cfg or load_config()
+    cfg = cfg or load_config(config_path)
     data_dir = cfg.get("data_dir", "data")
     storage = Storage(os.path.join(PROJECT_DIR, data_dir))
+
+    from daily_push.export_site import export_site, push_site, merge_remote_history
+    # Merge remote-only days FIRST so purge also cleans them; otherwise the later
+    # export's merge would re-introduce ignored entries and push them back.
+    merge_remote_history(storage, cfg)
     removed = purge(storage, cfg)
     storage.close()
 
-    from daily_push.export_site import export_site, push_site
-    exported = export_site()
+    exported = export_site(config_path=config_path, merge_remote=False)  # history already merged
     pushed = None
     push_error = None
     try:
-        pushed = push_site()
+        pushed = push_site(config_path=config_path)
     except Exception as e:
         push_error = str(e)
     return {

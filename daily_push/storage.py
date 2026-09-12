@@ -41,7 +41,8 @@ class Storage:
             return bool(v)
         return True
 
-    def save(self, push_date, netease=None, bilibili=None, qq=None, wechat=None, mp=None):
+    def save(self, push_date, netease=None, bilibili=None, qq=None, wechat=None, mp=None,
+             overwrite=False):
         import datetime
         now = datetime.datetime.now().isoformat(timespec="seconds")
         fields = {"netease": netease, "bilibili": bilibili,
@@ -52,7 +53,8 @@ class Storage:
                 (push_date,)).fetchone()
             merged = {}
             for name, val in fields.items():
-                if existing is not None and not self._has_data(val):
+                if (not overwrite and existing is not None
+                        and not self._has_data(val)):
                     old = json.loads(existing[name]) if existing[name] else None
                     if self._has_data(old):
                         val = old

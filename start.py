@@ -4,11 +4,10 @@
     python start.py            # 启动并执行一次采集
     python start.py --no-collect  # 只启动服务（网页），不手动采集
 
-失败处理：
-    - 采集失败：发邮件（本地 · 采集失败）并每 5 分钟耐心重试，网络恢复后自动补上；
-    - 推送失败：发邮件（本地 · 推送失败）并后台每 60 秒重试直到成功；
-    - 不再桌面弹窗，全部统一邮件通知并标明失败环节。
-服务就绪后：自动打开浏览器到仪表盘。
+启动行为（2026-09-12 起）：
+    - 静默启动：不再一上来就弹浏览器；
+    - **首次采集并成功推送后**才自动打开本地网页（没推送完不弹）；
+    - 失败处理：采集失败发邮件并每 5 分钟耐心重试；推送失败发邮件并后台每 60 秒重试。
 """
 import os
 import socket
@@ -21,14 +20,20 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+from daily_push import run_status
 from daily_push.config import load_config
 from daily_push.collector import collect_once
+from daily_push.publish_lock import LockBusy, heavy_lock
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 NODE_SERVER_JS = os.path.join(PROJECT_DIR, "netease_server.js")
 
 COLLECT_RETRY_INTERVAL = 300  # 采集失败后耐心重试间隔（秒）
 PUSH_RETRY_INTERVAL = 60      # 推送失败后后台重试间隔（秒）
+HEAVY_LOCK_TIMEOUT = 900      # 跨进程发布锁最长等待（秒）
+
+# Set once the first collect cycle has been exported AND pushed successfully.
+_first_push_event = threading.Event()
 
 
 def _send_mail(subject, body):
@@ -110,12 +115,7 @@ def _port_open(host, port):
 
 
 def ensure_netease_api():
-    """Ensure NeteaseCloudMusicApi is listening on :3000; spawn if needed.
-
-    Only needed for the ``api`` netease mode. When using ``ncm-cli``
-    mode the official CLI replaces the Node proxy entirely, so nothing is
-    started here.
-    """
+    """Ensure NeteaseCloudMusicApi is listening on :3000; spawn if needed."""
     cfg = load_config()
     mode = cfg.get("netease", {}).get("mode", "api")
     if mode != "api":
@@ -152,25 +152,30 @@ def run_collect(stop_at=None):
     print(f"[collect] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} starting...")
     reported = False
     while True:
+        errs = None
         try:
-            result = collect_once()
-            errs = _collect_errors(result)
-            if not errs:
-                print(f"[collect] done push_date={result.get('push_date')}")
-                _export_and_push()
-                if reported:
-                    print("[collect] 网络/登录态恢复，重试成功")
-                return
+            with heavy_lock(timeout=HEAVY_LOCK_TIMEOUT):
+                result = collect_once()
+                errs = _collect_errors(result)
+                if not errs:
+                    print(f"[collect] done push_date={result.get('push_date')}")
+                    run_status.record("last_collect", result.get("push_date"))
+                    ok = _export_and_push()
+                    if reported and ok:
+                        print("[collect] 网络/登录态恢复，重试成功")
+                    return
+        except LockBusy:
+            print("[collect] 另一个发布任务在运行，稍后重试")
+        except Exception as e:
+            print(f"[collect] ERROR {e}")
+            errs = {"collect": str(e)}
+
+        if errs:
             print(f"[collect] errors: {errs}")
             if not reported:
                 _report_errors(errs)
                 reported = True
             _try_apply_reply_cookie(errs)
-        except Exception as e:
-            print(f"[collect] ERROR {e}")
-            if not reported:
-                _report_errors({"collect": str(e)})
-                reported = True
         if stop_at and datetime.now() >= stop_at:
             print("[collect] give up this cycle (next scheduled run reached)")
             return
@@ -179,21 +184,28 @@ def run_collect(stop_at=None):
 
 
 def _export_and_push():
-    """导出站点并推送。推送失败：发邮件 + 后台每 60s 重试直到成功。"""
+    """导出站点并推送。失败：发邮件 + 后台每 60s 重试。成功返回 True。"""
     try:
         from daily_push.export_site import export_site, push_site
         path = export_site()
-        try:
-            pushed = push_site()
-            print(f"[site] exported {path}" + (f" -> {pushed}" if pushed else " (no repo configured)"))
-        except Exception as e:
-            print(f"[site] push failed: {e}; will retry in background")
-            _report_errors({"推送": f"本地已导出，但推送 GitHub 失败（云端站点会缺本地数据，如公众号 mp）：{e}"},
-                           stage="推送")
-            _start_push_retry()
     except Exception as e:
-        print(f"[site] export/push failed: {e}")
+        print(f"[site] export failed: {e}")
         _report_errors({"导出": str(e)}, stage="导出")
+        _start_push_retry()
+        return False
+
+    try:
+        pushed = push_site()
+        print(f"[site] exported {path}" + (f" -> {pushed}" if pushed else " (no repo configured)"))
+        run_status.record("last_push")
+        _first_push_event.set()
+        return True
+    except Exception as e:
+        print(f"[site] push failed: {e}; will retry in background")
+        _report_errors({"推送": f"本地已导出，但推送 GitHub 失败（云端站点会缺本地数据，如公众号 mp）：{e}"},
+                       stage="推送")
+        _start_push_retry()
+        return False
 
 
 _push_retry_lock = threading.Lock()
@@ -214,32 +226,53 @@ def _start_push_retry():
         while True:
             time.sleep(PUSH_RETRY_INTERVAL)
             try:
-                export_site()
-                pushed = push_site()
+                with heavy_lock(timeout=HEAVY_LOCK_TIMEOUT):
+                    export_site()
+                    pushed = push_site()
                 print(f"[site] background push retry succeeded -> {pushed}")
+                run_status.record("last_push")
+                _first_push_event.set()
                 return
+            except LockBusy:
+                print("[site] background retry: another task running, will retry")
             except Exception as e:
                 print(f"[site] background push retry failed: {e}")
 
     threading.Thread(target=worker, daemon=True).start()
 
 
-def scheduler_thread(push_time):
-    """Run collect once daily at push_time (HH:MM), retrying patiently until
-    the next scheduled run if the network is down (e.g. hotspot not connected)."""
-    hh, mm = (int(x) for x in push_time.split(":"))
-    print(f"[sched] daily collect scheduled at {hh:02d}:{mm:02d}")
+def _current_push_time(default):
+    try:
+        return load_config().get("push_time", default) or default
+    except Exception:
+        return default
+
+
+def scheduler_thread(default_push_time):
+    """Daily collect at push_time (HH:MM); re-reads settings so edits apply live."""
+    print(f"[sched] daily collect scheduled at {default_push_time}")
     while True:
+        push_time = _current_push_time(default_push_time)
+        try:
+            hh, mm = (int(x) for x in push_time.split(":"))
+        except Exception:
+            hh, mm = (int(x) for x in default_push_time.split(":"))
         now = datetime.now()
         target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
         if target <= now:
             target += timedelta(days=1)
-        time.sleep((target - now).total_seconds())
-        run_collect(stop_at=target + timedelta(days=1))
+        while datetime.now() < target:
+            remaining = (target - datetime.now()).total_seconds()
+            time.sleep(min(30, max(0.5, remaining)))
+            if _current_push_time(default_push_time) != push_time:
+                print("[sched] push_time changed, rescheduling")
+                break
+        else:
+            run_collect(stop_at=target + timedelta(days=1))
 
 
-def open_dashboard(host, port):
-    """Wait until the server is up, then open the dashboard in the default browser."""
+def open_dashboard(host, port, wait_event=None):
+    """Wait for the server (and, if given, the first successful push), then open browser."""
     def _wait():
         for _ in range(60):
             try:
@@ -247,6 +280,9 @@ def open_dashboard(host, port):
                     break
             except OSError:
                 time.sleep(0.5)
+        if wait_event is not None:
+            print("[start] waiting for first successful push before opening the page ...")
+            wait_event.wait()
         try:
             webbrowser.open(f"http://{host}:{port}")
         except Exception:
@@ -261,6 +297,8 @@ def main():
     ensure_netease_api()
     if do_collect:
         threading.Thread(target=run_collect, daemon=True).start()
+    else:
+        _first_push_event.set()
 
     from daily_push.app import create_app
     cfg = load_config()
@@ -271,7 +309,7 @@ def main():
     thread.start()
 
     print(f"[start] open http://127.0.0.1:{port}  (Ctrl+C to stop)")
-    open_dashboard("127.0.0.1", port)
+    open_dashboard("127.0.0.1", port, wait_event=_first_push_event)
     create_app().run(host="127.0.0.1", port=port, debug=False, use_reloader=False, threaded=True)
 
 

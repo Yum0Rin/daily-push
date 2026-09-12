@@ -97,6 +97,31 @@ class SettingsApiTest(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertFalse(r.get_json()["results"]["bilibili"]["ok"])
 
+    def test_security_headers(self):
+        r = self.client.get("/settings")
+        self.assertEqual(r.headers.get("X-Content-Type-Options"), "nosniff")
+        self.assertEqual(r.headers.get("X-Frame-Options"), "DENY")
+        self.assertIn("Content-Security-Policy", r.headers)
+
+    def test_settings_get_includes_status(self):
+        r = self.client.get("/api/settings", headers=self._h())
+        self.assertIn("status", r.get_json())
+
+    def test_config_backup_and_restore(self):
+        r = self.client.get("/api/settings/config-backup", headers=self._h())
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("netease", r.get_json()["config"])
+        r2 = self.client.post("/api/settings/config-restore",
+                              json={"config": {"netease": {"cookie": "MUSIC_U=NEWVALUE"}}},
+                              headers=self._h())
+        self.assertEqual(r2.status_code, 200)
+        with open(self.config, encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["netease"]["cookie"], "MUSIC_U=NEWVALUE")
+
+    def test_config_restore_requires_token(self):
+        r = self.client.post("/api/settings/config-restore", json={"config": {}})
+        self.assertEqual(r.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

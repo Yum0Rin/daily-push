@@ -277,6 +277,18 @@ def save_secrets(updates, config_path=None):
     return current
 
 
+def restore_config(data, config_path=None):
+    """Overwrite config.json with a user-supplied backup (atomic, with .bak)."""
+    if not isinstance(data, dict):
+        raise SettingsError("配置备份必须是 JSON 对象")
+    target = config_path or CONFIG_PATH
+    with _LOCK:
+        if os.path.exists(target):
+            _backup(target)
+        _atomic_write_json(target, data)
+    return True
+
+
 # --------------------------------------------------------------------------- #
 # views (never expose raw secrets)
 # --------------------------------------------------------------------------- #
@@ -291,6 +303,11 @@ def mask(value):
 
 def policy_view(settings_path=None):
     return _read_json(settings_path or SETTINGS_PATH, default={})
+
+
+def raw_config(config_path=None):
+    """Return the raw config.json dict (for backup download)."""
+    return _read_json(config_path or CONFIG_PATH, default={})
 
 
 def secrets_view(config_path=None):

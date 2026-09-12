@@ -11,6 +11,40 @@ main { max-width: 880px; }
 
 .hint { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
 
+/* run-status grid */
+.statusgrid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.statusitem {
+  background: var(--card-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+}
+.statusitem .label { font-size: 12px; color: var(--muted); }
+.statusitem .value { font-size: 14px; font-weight: 600; margin-top: 2px; }
+.statusitem .detail { font-size: 11px; color: var(--muted); margin-top: 2px; word-break: break-all; }
+
+/* info icon with hover tooltip */
+.info {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 1px solid var(--border); color: var(--muted);
+  font-size: 11px; font-style: normal; cursor: help; position: relative;
+  vertical-align: middle; flex-shrink: 0;
+}
+.info::after {
+  content: attr(data-tip);
+  position: absolute; left: 50%; bottom: 150%; transform: translateX(-50%);
+  width: max-content; max-width: 280px;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 12px; line-height: 1.5; font-weight: 400;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .3);
+  opacity: 0; pointer-events: none; transition: opacity .15s;
+  z-index: 80; white-space: normal; text-align: left;
+}
+.info:hover::after { opacity: 1; }
+
 .authgrid {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 14px;

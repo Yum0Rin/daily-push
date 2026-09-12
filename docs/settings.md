@@ -142,10 +142,25 @@ git add settings.json && git commit -m "chore: 更新 settings.json" && git push
 
 ## 6. 并发控制
 
-`app.py` 用一个全局 `_heavy_lock` 串行化**采集**与**清理+发布**：二者都会写 SQLite、
-操作 `site/` 的 git 仓库，绝不能并发。第二个任务在第一个未结束时返回 `429`。
+采集 / 清理 / 导出 / 推送都会写 SQLite 并操作 `site/` 的 git 仓库，绝不能并发。
+`daily_push/publish_lock.py` 提供**跨进程文件锁**（Windows `msvcrt` / POSIX `fcntl`，
+进程退出自动释放、不会残留死锁）：
 
-## 7. 测试
+- `start.py` 的采集、后台推送重试，以及 `app.py` 的采集/清理任务都 `acquire` 同一把锁；
+- Flask 路由用非阻塞获取，抢不到直接返回 `429`；`start.py` 用带超时的阻塞获取。
+- 这解决了此前 `start.py` 的调度/重推线程与设置页清理任务并发 `git reset --hard` / SQLite 写冲突的问题。
+
+## 7. 运行状态、配置备份与安全响应头
+
+- **运行状态**：`daily_push/run_status.py` 把「上次采集 / 上次推送 / 上次清理发布 / 上次各平台检测」
+  记到 `<data_dir>/status.json`，设置页顶部「🩺 运行状态」卡展示。
+- **配置备份 / 还原**：设置页「💾 配置备份」可下载当前 `config.json`（含密钥，仅本机），
+  或上传备份还原（`restore_config()` 覆盖前自动生成 `.bak`）。
+- **安全响应头**：所有响应加 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、
+  `Referrer-Policy: no-referrer` 与一条 CSP（保留 `'unsafe-inline'` 以兼容现有内联事件处理）。
+- **界面引导**：不直观的字段旁有 ⓘ 圆圈，鼠标悬停显示说明（纯 CSS tooltip，无需 JS）。
+
+## 8. 测试
 
 零新依赖，使用标准库 `unittest`：
 
@@ -164,7 +179,7 @@ python -m unittest discover -s tests -t .
 | `tests/test_git_publish.py` | 只提交 settings.json（其他脏文件不进 commit）、无变化跳过 |
 | `tests/test_cloud_secrets.py` | `gh secret set` 用 stdin 传值、token 走 `GH_TOKEN`、缺 repo/失败的错误处理 |
 
-## 8. 已知限制
+## 9. 已知限制
 
 - `push_time`、`port`、`netease.mode` 等由 `start.py` / `create_app` 启动时读取的项，
   改完需重启进程才生效；屏蔽名单 / Cookie 因每次采集重读，无需重启。
@@ -180,3 +195,7 @@ python -m unittest discover -s tests -t .
   公众号屏蔽改为仅匹配作者、`git_publish` 只提交 `settings.json`、导出隔离、
   **本地 → 云端 Cookie 同步（`cloud_secrets.py` + 设置页「同步云端」，邮件流程保留兜底）**、
   「B站动态翻页数（每页上限约20条）」标签，共 31 项单元测试。
+- **2026-09-12（二）**：跨进程文件锁 `publish_lock`（采集/清理/推送串行化）；修复 purge 未清理
+  **远端独有日期** + `Storage.save(overwrite=True)` 清空字段；B站屏蔽空串防御；
+  云端 `gh secret set` 改 stdin；`start.py` 静默启动、**首次成功推送后才开网页**、`push_time` 热更新；
+  设置页新增运行状态卡、配置备份/还原、安全响应头、ⓘ 悬停引导；测试增至 44 项。

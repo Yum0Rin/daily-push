@@ -17,9 +17,13 @@ from flask import Flask, jsonify, render_template, request
 
 from .config import load_config
 from .collector import collect_once
+from . import run_status
+from .publish_lock import LockBusy, heavy_lock
 from .settings_store import (
     SettingsError,
     policy_view,
+    raw_config,
+    restore_config,
     save_policy,
     save_secrets,
     secrets_view,
@@ -105,8 +109,8 @@ def create_app(config_path=None, settings_path=None):
         return jsonify(storage.get(date_str) or {"error": "no data", "push_date": date_str})
 
     # One heavy operation (collect / purge+publish) at a time: they touch the
-    # SQLite DB and the site/ git repo, so they must never run concurrently.
-    _heavy_lock = threading.Lock()
+    # SQLite DB and the site/ git repo. Serialized across processes via a file
+    # lock (see publish_lock.py), not just in-process.
     _state = {
         "running": False,
         "done": False,
@@ -117,7 +121,7 @@ def create_app(config_path=None, settings_path=None):
     }
     _state_lock = threading.Lock()
 
-    def _run_collect():
+    def _run_collect(lock):
         with _state_lock:
             _state["running"] = True
             _state["done"] = False
@@ -139,6 +143,8 @@ def create_app(config_path=None, settings_path=None):
                     send_email("每日推送 · 本地采集失败", "\n".join(lines))
                 except Exception:
                     pass
+            else:
+                run_status.record("last_collect", result.get("push_date"))
         except Exception as e:
             with _state_lock:
                 _state["error"] = str(e)
@@ -147,13 +153,16 @@ def create_app(config_path=None, settings_path=None):
                 _state["running"] = False
                 _state["done"] = True
                 _state["finished_at"] = datetime.datetime.now().isoformat(timespec="seconds")
-            _heavy_lock.release()
+            lock.release()
 
     @app.route("/api/collect", methods=["POST"])
     def trigger_collect():
-        if not _heavy_lock.acquire(blocking=False):
+        lock = heavy_lock()
+        try:
+            lock.acquire(blocking=False)
+        except LockBusy:
             return jsonify({"error": "另一个任务正在运行"}), 429
-        threading.Thread(target=_run_collect, daemon=True).start()
+        threading.Thread(target=_run_collect, args=(lock,), daemon=True).start()
         return jsonify({"status": "started"})
 
     @app.route("/api/collect/status")
@@ -188,6 +197,7 @@ def create_app(config_path=None, settings_path=None):
         return jsonify({
             "policy": policy_view(settings_path),
             "secrets": secrets_view(config_path),
+            "status": run_status.read(),
         })
 
     @app.route("/api/settings/policy", methods=["POST"])
@@ -235,6 +245,7 @@ def create_app(config_path=None, settings_path=None):
             ok, detail = test_cookie(source, value, base)
         except Exception as e:
             ok, detail = False, f"检测失败：{e}"
+        run_status.record(f"last_check_{source}", detail)
         return jsonify({"ok": bool(ok), "detail": detail})
 
     @app.route("/api/settings/check", methods=["POST"])
@@ -264,6 +275,7 @@ def create_app(config_path=None, settings_path=None):
             except Exception as e:
                 ok, detail = False, f"检测失败：{e}"
             results[source] = {"ok": bool(ok), "detail": detail}
+            run_status.record(f"last_check_{source}", detail)
         return jsonify({"results": results})
 
     # -- local -> cloud credential sync (gh secret set) ----------------------
@@ -292,6 +304,32 @@ def create_app(config_path=None, settings_path=None):
         from . import cloud_secrets
         return jsonify({"results": cloud_secrets.sync_cookies(cfg, values)})
 
+    # -- config backup / restore (local only, contains secrets) --------------
+    @app.route("/api/settings/config-backup")
+    def api_settings_config_backup():
+        return jsonify({"config": raw_config(config_path)})
+
+    @app.route("/api/settings/config-restore", methods=["POST"])
+    def api_settings_config_restore():
+        body = request.get_json(silent=True) or {}
+        try:
+            restore_config(body.get("config"), config_path)
+        except SettingsError as e:
+            return jsonify({"error": str(e)}), 400
+        return jsonify({"ok": True, "secrets": secrets_view(config_path)})
+
+    # -- security headers (defense in depth for the local pages) -------------
+    @app.after_request
+    def _security_headers(resp):
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("X-Frame-Options", "DENY")
+        resp.headers.setdefault("Referrer-Policy", "no-referrer")
+        resp.headers.setdefault(
+            "Content-Security-Policy",
+            "default-src 'self'; img-src 'self' data: https:; "
+            "style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'")
+        return resp
+
     # -- apply ignore lists to history + today, then republish ---------------
     _purge_state = {
         "running": False,
@@ -303,7 +341,7 @@ def create_app(config_path=None, settings_path=None):
     }
     _purge_lock = threading.Lock()
 
-    def _run_purge():
+    def _run_purge(lock):
         with _purge_lock:
             _purge_state.update(
                 running=True, done=False,
@@ -314,6 +352,7 @@ def create_app(config_path=None, settings_path=None):
             from .git_publish import commit_and_push_settings
             result = purge_and_publish()
             result["settings_publish"] = commit_and_push_settings(PROJECT_DIR)
+            run_status.record("last_publish")
             with _purge_lock:
                 _purge_state["result"] = result
         except Exception as e:
@@ -324,13 +363,16 @@ def create_app(config_path=None, settings_path=None):
                 _purge_state["running"] = False
                 _purge_state["done"] = True
                 _purge_state["finished_at"] = datetime.datetime.now().isoformat(timespec="seconds")
-            _heavy_lock.release()
+            lock.release()
 
     @app.route("/api/settings/purge", methods=["POST"])
     def api_settings_purge():
-        if not _heavy_lock.acquire(blocking=False):
+        lock = heavy_lock()
+        try:
+            lock.acquire(blocking=False)
+        except LockBusy:
             return jsonify({"error": "另一个任务正在运行，请稍后再试"}), 429
-        threading.Thread(target=_run_purge, daemon=True).start()
+        threading.Thread(target=_run_purge, args=(lock,), daemon=True).start()
         return jsonify({"status": "started"})
 
     @app.route("/api/settings/purge/status")

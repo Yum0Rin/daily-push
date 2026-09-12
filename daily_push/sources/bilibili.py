@@ -40,6 +40,10 @@ class BiliCollector:
         self._img_key = None
         self._sub_key = None
 
+    def _is_excluded(self, name):
+        """True if the UP name matches any exclude entry (substring; empties ignored)."""
+        return any(k and k in name for k in self.exclude)
+
     # ---- WBI signing ----
     def _get_wbi_keys(self):
         if self._img_key and self._sub_key:
@@ -123,7 +127,7 @@ class BiliCollector:
                 bvid = archive.get("bvid")
                 name = author.get("name", "")
                 created = int(author.get("pub_ts") or 0)
-                if not bvid or any(k in name for k in self.exclude) or bvid in seen_bvid:
+                if not bvid or self._is_excluded(name) or bvid in seen_bvid:
                     continue
                 if created < cutoff:
                     continue

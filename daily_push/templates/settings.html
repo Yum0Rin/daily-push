@@ -24,14 +24,20 @@
   <div id="toast" class="toast"></div>
 
   <section class="card">
+    <h2>🩺 运行状态</h2>
+    <div class="statusgrid" id="statusGrid"></div>
+  </section>
+
+  <section class="card">
     <h2>🔐 平台登录状态</h2>
     <p class="hint">Cookie 仅保存在本机 config.json，不会上传或导出到网页。</p>
     <div class="authgrid" id="authGrid"></div>
   </section>
 
   <section class="card">
-    <h2>🚫 屏蔽名单</h2>
-    <p class="hint">保存后清理历史/今天、重新导出并推送 Pages，并把 settings.json 推到 code 分支供云端使用。</p>
+    <h2>🚫 屏蔽名单
+      <span class="info" data-tip="保存后会立即清理历史与今天的命中条目、重新导出并推送 Pages，同时把 settings.json 推到 code 分支，云端下次采集也会按新名单过滤。">i</span>
+    </h2>
     <div class="field">
       <label>B站 UP 主（按名称子串匹配）</label>
       <div class="chips" id="chipsBili"></div>
@@ -47,6 +53,18 @@
     <h2>⚙️ 采集参数</h2>
     <div class="paramgrid" id="paramGrid"></div>
     <div class="actions"><button id="saveParams">保存参数</button></div>
+  </section>
+
+  <section class="card">
+    <h2>💾 配置备份
+      <span class="info" data-tip="导出的 config.json 含各平台 Cookie 等密钥，请仅在本机保存、不要外传。还原会覆盖当前 config.json（自动生成 .bak 备份）。">i</span>
+    </h2>
+    <p class="hint">下载当前 config.json 备份，或上传备份还原（覆盖前会自动备份）。</p>
+    <div class="actions">
+      <button id="downloadConfig" class="ghost">下载备份</button>
+      <button id="restoreConfig" class="ghost">上传还原</button>
+      <input id="restoreFile" type="file" accept=".json,application/json" style="display:none">
+    </div>
   </section>
 </main>
 

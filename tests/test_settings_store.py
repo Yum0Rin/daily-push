@@ -89,6 +89,19 @@ class SaveTest(unittest.TestCase):
         with self.assertRaises(ss.SettingsError):
             ss.save_secrets({"netease": {"hax": "1"}}, self.config)
 
+    def test_restore_config_backs_up_and_overwrites(self):
+        _write(self.config, {"netease": {"cookie": "OLD"}})
+        ss.restore_config({"netease": {"cookie": "NEW"}, "extra": 1}, self.config)
+        with open(self.config, encoding="utf-8") as f:
+            data = json.load(f)
+        self.assertEqual(data["netease"]["cookie"], "NEW")
+        self.assertEqual(data["extra"], 1)
+        self.assertTrue(os.path.exists(self.config + ".bak"))
+
+    def test_restore_rejects_non_dict(self):
+        with self.assertRaises(ss.SettingsError):
+            ss.restore_config(["nope"], self.config)
+
 
 class ViewTest(unittest.TestCase):
     def test_mask_hides_middle(self):

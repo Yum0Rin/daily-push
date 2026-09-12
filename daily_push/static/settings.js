@@ -35,8 +35,12 @@ function toast(msg, ok) {
 
 // --------------------------------------------------------------- auth cards
 const SOURCES = [
-  { key: "netease", label: "网易云", input: "粘贴 MUSIC_U=... 或整段 Cookie" },
-  { key: "bilibili", label: "B站", input: "粘贴 SESSDATA 值或整段 Cookie" },
+  { key: "netease", label: "网易云",
+    tip: "粘贴 MUSIC_U=... 或浏览器里的整段 Cookie；保存前会先验证。",
+    input: "粘贴 MUSIC_U=... 或整段 Cookie" },
+  { key: "bilibili", label: "B站",
+    tip: "粘贴 SESSDATA 值或整段 Cookie；保存前会先验证。",
+    input: "粘贴 SESSDATA 值或整段 Cookie" },
 ];
 
 function renderAuth() {
@@ -50,6 +54,7 @@ function renderAuth() {
         <div class="authhead">
           <span class="status-dot ${configured ? "" : "bad"}"></span>
           <strong>${esc(s.label)}</strong>
+          <span class="info" data-tip="${esc(s.tip)}">i</span>
         </div>
         <div class="authmask">${configured ? "已配置：" + esc(masked) : "未配置"}</div>
         <input class="authinput" type="password" autocomplete="off" placeholder="${esc(s.input)}">
@@ -276,20 +281,88 @@ async function load() {
   const d = await api("/api/settings");
   state.policy = d.policy || {};
   state.secrets = d.secrets || {};
+  state.status = d.status || {};
   try {
     state.cloud = await api("/api/settings/cloud-status");
   } catch (e) {
     state.cloud = { available: false, detail: e.message };
   }
+  renderStatus();
   renderAuth();
   renderChips();
   renderParams();
+}
+
+// ------------------------------------------------------------- run status
+const STATUS_FIELDS = [
+  { key: "last_collect", label: "上次采集" },
+  { key: "last_push", label: "上次推送" },
+  { key: "last_publish", label: "上次清理发布" },
+  { key: "last_check_netease", label: "上次检测 · 网易云" },
+  { key: "last_check_bilibili", label: "上次检测 · B站" },
+];
+
+function fmtTime(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function renderStatus() {
+  const s = state.status || {};
+  $("statusGrid").innerHTML = STATUS_FIELDS.map((f) => {
+    const item = s[f.key] || {};
+    return `<div class="statusitem">
+      <div class="label">${esc(f.label)}</div>
+      <div class="value">${esc(fmtTime(item.at))}</div>
+      ${item.detail ? `<div class="detail">${esc(item.detail)}</div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+// -------------------------------------------------------- config backup
+async function downloadConfig() {
+  try {
+    const d = await api("/api/settings/config-backup");
+    const blob = new Blob([JSON.stringify(d.config || {}, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `config-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast("已下载备份（含密钥，请妥善保管）", true);
+  } catch (e) {
+    toast("下载失败：" + e.message, false);
+  }
+}
+
+async function restoreConfig(e) {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (!file) return;
+  if (!confirm("还原会用备份覆盖当前 config.json（覆盖前自动生成 .bak）。确定继续？")) return;
+  try {
+    const config = JSON.parse(await file.text());
+    await api("/api/settings/config-restore", { method: "POST", body: { config } });
+    toast("已还原配置，正在刷新…", true);
+    await load();
+  } catch (err) {
+    toast("还原失败：" + err.message, false);
+  }
 }
 
 async function init() {
   initTheme();
   $("savePolicy").addEventListener("click", savePolicy);
   $("saveParams").addEventListener("click", saveParams);
+  $("downloadConfig").addEventListener("click", downloadConfig);
+  $("restoreConfig").addEventListener("click", () => $("restoreFile").click());
+  $("restoreFile").addEventListener("change", restoreConfig);
   try {
     await load();
   } catch (e) {

@@ -62,6 +62,15 @@ def _merge_published(storage, days):
                      bilibili=fields.get("bilibili"), mp=fields.get("mp"))
 
 
+def merge_remote_history(storage, cfg):
+    """Merge days that exist only on the published site into the local DB.
+
+    Public helper so callers (e.g. purge) can merge *before* filtering, ensuring
+    remote-only days are also cleaned rather than re-published untouched.
+    """
+    return _merge_published(storage, _published_days_from_remote(cfg))
+
+
 def export_site(config_path=None, merge_remote=True):
     """Build a self-contained site/index.html with all stored days inlined.
 
@@ -72,7 +81,7 @@ def export_site(config_path=None, merge_remote=True):
     data_dir = cfg.get("data_dir", "data")
     storage = Storage(os.path.join(PROJECT_DIR, data_dir))
     if merge_remote:
-        _merge_published(storage, _published_days_from_remote(cfg))
+        merge_remote_history(storage, cfg)
     days = {}
     for d in storage.list_dates():
         row = storage.get(d)

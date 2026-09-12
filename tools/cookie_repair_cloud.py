@@ -29,9 +29,10 @@ SECRET_NAMES = {"netease": "NETEASE_COOKIE", "bilibili": "BILIBILI_SESSDATA"}
 
 
 def _gh_secret_set(name, value):
+    # Value is passed via stdin so it never appears in the process command line.
     r = subprocess.run(
-        ["gh", "secret", "set", name, "--repo", REPO, "--body", value],
-        capture_output=True, text=True, timeout=60,
+        ["gh", "secret", "set", name, "--repo", REPO],
+        input=value, capture_output=True, text=True, timeout=60,
     )
     return r.returncode == 0
 
