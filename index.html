@@ -184,6 +184,8 @@ button.stat .value { margin-top: 4px; }
 .cardgrid .gcard.notify { opacity: .65; }
 .cardgrid .gthumb { display: block; aspect-ratio: 16 / 9; background: var(--card); overflow: hidden; }
 .cardgrid .gthumb img { width: 100%; height: 100%; object-fit: cover; object-position: center; display: block; }
+/* 公众号封面按微信固定比例（2.35:1）裁切显示 */
+.cardgrid.mp .gthumb { aspect-ratio: 2.35 / 1; }
 .cardgrid .ginfo { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; }
 .cardgrid .gtitle {
   color: var(--text); font-weight: 500; text-decoration: none;
@@ -261,7 +263,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
 
   <section class="card" id="card-mp" style="display:none">
     <h2>📰 微信公众号推文</h2>
-    <ul class="cardgrid" id="mpList"></ul>
+    <ul class="cardgrid mp" id="mpList"></ul>
   </section>
 
   <p id="emptyState" class="empty" style="display:none">该日暂无推送记录，每日开机自动采集。</p>
