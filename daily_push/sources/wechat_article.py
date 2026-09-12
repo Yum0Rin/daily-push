@@ -38,6 +38,14 @@ class WeChatArticleCollector:
         self.max_articles = int(c.get("max_articles", 10))
         self.mp_cutoff_hour = int(c.get("mp_cutoff_hour", 18))
 
+    def _is_excluded(self, author, title=""):
+        """公众号屏蔽只按作者（公众号名）做子串匹配。
+
+        ``title`` 仅为保留参数，**不参与匹配**——避免标题里出现关键词时误伤
+        正常推文（如标题含「通知」但账号本身需要保留）。
+        """
+        return any(k in author for k in self.exclude_keywords)
+
     def _window(self):
         """推送窗口：最近一次「18:00 截止点」之后的 24h ~ 当前时刻（北京时间）。
 
@@ -121,7 +129,7 @@ class WeChatArticleCollector:
                         if parsed:
                             title = parsed["title"]
                             author = parsed["author"]
-                            if any(k in author or k in title for k in self.exclude_keywords):
+                            if self._is_excluded(author, title):
                                 continue
                             articles.append({
                                 "title": title,

@@ -1,6 +1,8 @@
 # ===== 敏感信息：绝不提交 =====
 # 各平台 Cookie / 会话凭证
 config.json
+# settings_store.save_secrets() 的自动备份（同样含密钥）
+config.json.*
 
 # 采集存储（含个人/群消息内容）
 data/

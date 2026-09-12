@@ -7,9 +7,10 @@
 
 用户说「忽略 XX」时：
 
-1. **编辑 `config.json`**（本文件已 gitignore，不会被提交）：
+1. **编辑 `settings.json`**（本文件**纳入 git 跟踪**，策略键与云端同源）：
    - B站 UP 主：追加到 `bilibili.exclude` 数组（作者名子串匹配）
-   - 公众号：追加关键词到 `wechat.exclude_keywords` 数组（author/title 子串匹配）
+   - 公众号：追加关键词到 `wechat.exclude_keywords` 数组（**仅按 author/公众号名 子串匹配**，不匹配标题，避免误伤）
+   > 也可直接在本地设置页 `http://127.0.0.1:5000/settings` 的「屏蔽名单」里增删，效果相同。
 2. **清除历史**：运行
    ```
    python tools/purge_ignored.py
@@ -17,8 +18,15 @@
    该脚本会按忽略名单删除本地库所有历史日期中的对应条目，并自动
    重新导出静态站 + 推送 GitHub Pages。
    （只清除不推送加 `--no-push`）
+3. **同步云端**：`settings.json` 需在 `code` 分支上，云端 `daily-collect` 才会同源忽略。
+   - 用设置页保存时会**自动**提交并推送 `settings.json` 到 `code`；
+   - 若手动改的，自己 `git add settings.json && git commit && git push`。
 
-> 注意：`config.json` 是敏感文件（Cookie），**绝不可提交**，已在 .gitignore 中。
+> **配置分层（重要）**：
+> - `settings.json`：**非密钥**策略（屏蔽名单 / 阈值 / `push_time` 等），跟踪入库，本地与云端同源。
+> - `config.json`：**密钥/机器相关**（各平台 Cookie、SMTP 授权码、`site.repo`、`port` 等），已 gitignore，**绝不可提交**。
+> - `load_config()` 合并顺序 `默认 < settings.json < config.json`；`settings.json` 里出现密钥键会被忽略。
+> - `settings_store.save_secrets()` 会生成 `config.json.bak`（含密钥），已被 `config.json.*` 规则忽略。
 
 ## 分支与提交约定（重要）
 
@@ -37,6 +45,21 @@
 - 本地采集依赖网易云 Node 代理 :3000（`npm install` + 启动 NeteaseCloudMusicApi）
 - 重新导出并推送站点：`python tools/purge_ignored.py` 会自动做；
   单独做可参考 `daily_push/export_site.py` 的 `export_site()` / `push_site()`
+- 跑单元测试：`python -m unittest discover -s tests -t .`
+
+## 本地设置页（`/settings`）
+
+`python start.py` 后访问 `http://127.0.0.1:5000/settings`（**仅本机**，仪表盘右上角 ⚙️ 进入）：
+
+- **平台登录状态**：检测网易云 / B站；粘贴新 Cookie「保存并验证」（写 `config.json`）。
+- **屏蔽名单**：增删 B站 UP / 公众号关键词。「保存并应用到全部推送」= 写 `settings.json`
+  → 清理历史/今天命中条目 → 重发 Pages → 推送 `settings.json` 到 `code`。
+- **采集参数**：`push_time` / `max_songs` / 窗口与条数等。
+- **安全**：Host/Origin 校验 + 每次启动随机 `X-CSRF-Token`；密钥只回打码值；设置页不参与静态站导出。
+- **生效时机**：屏蔽名单 / Cookie 下次采集即生效；`push_time`、`port` 等需重启进程。
+
+> 云端要读到 `settings.json`，前提是 `code` 分支上是**含配置分层的新代码**，否则云端仍走旧逻辑。
+> 详见 [docs/settings.md](docs/settings.md)。
 
 ## 平台关键点
 

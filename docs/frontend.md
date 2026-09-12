@@ -50,6 +50,15 @@ main:
 - 徽章：`.badge-updated / .badge-idle / .badge-err`（当前 B站卡已不用）。
 - QQ / 微信卡片样式已无引用（采集保留，前端移除）。
 
+## 本地设置页（`templates/settings.html` + `static/settings.{css,js}`）
+
+- 与仪表盘**同一套样式**（复用 `static/style.css`，追加 `settings.css`）；由 Flask 的 `/settings` 渲染。
+- 仅本机可访问，**不参与静态站导出**：`export_site.py` 会把 `#settingsLink` 从导出 HTML 中剥离。
+- 页面从 `<meta name="csrf-token">` 取本次启动的随机 token，所有 `/api/settings*` 请求带 `X-CSRF-Token`。
+- 三个区块：平台登录状态（检测 / 保存并验证 Cookie，值打码）、屏蔽名单（标签式增删 + 一键应用）、采集参数。
+- 「保存并应用到全部推送」会轮询 `/api/settings/purge/status`，完成后按结果提示 Pages / 云端同步情况。
+- 仪表盘右上角新增 ⚙️ 入口；**静态站模式（`window.__DAYS__` 存在）下由 `app.js` 隐藏**，避免 Pages 404。
+
 ## 变更记录
 
 - 移除「日期标签」区块（由 datePicker 显示日期）。
@@ -59,4 +68,13 @@ main:
 - 新增公众号卡片（`card-mp` / `mpList` / `renderArticles`）。
 - 公众号卡片增强：逐条显示作者、通知类弱化（`li.notify` + `tag`）。
 - B站卡片改为公众号排版（去掉「最新：」前缀与错误/空闲徽章）。
+
+### 2026-09-12
+
+- 新增本地设置页 `settings.html` / `settings.{css,js}`（同风格，仅本机，CSRF 鉴权）。
+- 仪表盘新增 ⚙️ 设置入口；静态站模式下隐藏（`app.js`），并在导出时剥离（`export_site.py`）。
+- 修复日期选择器 `«`/`»` 的跨年 bug：原来 ±12 个月只做一次 `if` 归一化，9 月会落到 12 月/1 月；
+  改为取模 `view.y += Math.floor(mo/12); mo = ((mo%12)+12)%12`，现在 2026-09 → 2025-09 / 2027-09。
+- 样式修复：`a.ghost`（返回仪表盘）按钮化；移除网易云登录卡的 `api` 小标签（B站无 mode，两卡对称）；
+  toast 默认隐藏（此前空泡挂在顶部）；「仅本机可访问」改为右侧独立徽章。
 

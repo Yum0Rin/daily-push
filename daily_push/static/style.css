@@ -47,6 +47,8 @@ header {
   backdrop-filter: blur(6px);
 }
 .brand { display: flex; align-items: center; justify-content: space-between; }
+.brand-actions { display: flex; align-items: center; gap: 8px; }
+.brand-actions a.ghost { text-decoration: none; line-height: 1; }
 .brand h1 { font-size: 20px; margin: 0; padding-left: 2.5em; }
 .datebar {
   position: relative;
@@ -200,10 +202,15 @@ button {
   transition: transform .1s, opacity .2s;
 }
 button:active { transform: scale(.97); }
-button.ghost {
+button.ghost, a.ghost {
   background: var(--card); color: var(--text);
   border: 1px solid var(--border); padding: 6px 12px;
 }
+a.ghost {
+  display: inline-block; border-radius: 10px;
+  text-decoration: none; line-height: 1.4;
+}
+a.ghost:hover { border-color: var(--accent-2); }
 button:disabled { opacity: .5; cursor: not-allowed; }
 #collectMsg { color: var(--muted); font-size: 13px; }
 .error-banner { color: var(--red); font-size: 13px; padding: 8px; }

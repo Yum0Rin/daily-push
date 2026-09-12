@@ -2,8 +2,9 @@
 
 用法: python tools/purge_ignored.py [--no-push]
 
-- bilibili: 按 author 名包含 config.bilibili.exclude 中任一关键词的条目
-- mp(公众号): 按 author/title 包含 config.wechat.exclude_keywords 中任一关键词的条目
+- bilibili: 按 author 名包含 bilibili.exclude 中任一关键词的条目
+- mp(公众号): 按 author（公众号名）包含 wechat.exclude_keywords 中任一关键词的条目
+  （仅作者，不匹配标题，避免误伤）
 
 从本地库所有历史日期删除后，重新导出静态站，可选推送 GitHub Pages。
 """
@@ -43,8 +44,7 @@ def purge(storage, cfg):
             kept = []
             for it in row["mp"]:
                 author = (it or {}).get("author", "")
-                title = (it or {}).get("title", "")
-                if any(k and (k in author or k in title) for k in mp_exclude):
+                if any(k and k in author for k in mp_exclude):
                     removed["mp"].append((d, author))
                     changed = True
                 else:
@@ -56,6 +56,35 @@ def purge(storage, cfg):
                          bilibili=row.get("bilibili") or None,
                          mp=row.get("mp") or None)
     return removed
+
+
+def purge_and_publish(cfg=None):
+    """Remove ignored entries from ALL history/today, re-export and push Pages.
+
+    Returns a stats dict: removal counts, export path, push result/error.
+    Used both by the CLI and by the local settings page.
+    """
+    cfg = cfg or load_config()
+    data_dir = cfg.get("data_dir", "data")
+    storage = Storage(os.path.join(PROJECT_DIR, data_dir))
+    removed = purge(storage, cfg)
+    storage.close()
+
+    from daily_push.export_site import export_site, push_site
+    exported = export_site()
+    pushed = None
+    push_error = None
+    try:
+        pushed = push_site()
+    except Exception as e:
+        push_error = str(e)
+    return {
+        "removed_bilibili": len(removed["bilibili"]),
+        "removed_mp": len(removed["mp"]),
+        "exported": exported,
+        "pushed": pushed,
+        "push_error": push_error,
+    }
 
 
 def main():

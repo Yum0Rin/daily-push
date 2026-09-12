@@ -3,6 +3,20 @@
 > ⚠️ **重要**：本文件只说明各字段的**用途**，**不包含真实值**。
 > 真实凭证都在 `config.json` 里，该文件已被 `.gitignore` 排除，请勿提交到仓库。
 
+## 配置分层
+
+| 文件 | 内容 | 是否入库 |
+|------|------|----------|
+| `settings.json` | **非密钥策略**：屏蔽名单、阈值、`push_time` 等（本地与云端同源） | ✅ 跟踪 |
+| `config.json` | **密钥 / 机器相关**：各平台 Cookie、SMTP 授权码、`site.repo`、`port` 等 | ❌ gitignore |
+| `config.json.bak` | `save_secrets()` 自动备份（含密钥） | ❌ 被 `config.json.*` 忽略 |
+
+`load_config()` 合并顺序：**默认值 < `settings.json` < `config.json`**。
+`settings.json` 中若出现密钥键会被忽略（防止策略文件夹带凭证）。
+本地设置页 `http://127.0.0.1:5000/settings` 可视化编辑上述两类文件：
+- 策略 → 写 `settings.json`（「保存并应用到全部推送」会清理历史/今天、重发 Pages 并推送到 `code`）；
+- Cookie → 写 `config.json`（仅本机；云端仍走 Secrets / 回复邮件链路）。
+
 ## 配置键参考
 
 | 配置键 | 含义 | 说明 |
@@ -11,11 +25,11 @@
 | `netease.cookie` | 网易云登录态 `MUSIC_U=...` | 浏览器登录网易云后复制 |
 | `netease.base_url` | 网易云API地址 | 默认 `http://localhost:3000` |
 | `bilibili.sessdata` | B站 Cookie 中 `SESSDATA` | 浏览器登录 B站后复制（动态接口需登录态 + WBI 签名） |
-| `bilibili.exclude` | 按 UP 名排除的动态 | 默认一组固定排除名单 |
+| `bilibili.exclude` | 按 UP 名**子串**排除的动态 | 存于 `settings.json`（跟踪入库） |
 | `bilibili.recent_days` | 时间窗口天数 | 默认 1 |
 | `bilibili.max_videos` | 最多条数 | 默认 10 |
 | `bilibili.feed_pages` | 动态接口最多翻页数 | 默认 2 |
-| `wechat.exclude_keywords` | 标题/账号命中即剔除 | 默认含演出余票监控、省教育厅等 |
+| `wechat.exclude_keywords` | 账号名命中即剔除 | **仅按 author/公众号名**子串匹配，不匹配标题（避免误伤） |
 | `wechat.notify_keywords` | 命中标记为「通知」类置底 | 默认覆盖取餐/优惠券/快递等 |
 | `wechat.important_biz` | 只保留这些公众号 | 默认空=不过滤 |
 | `wechat.max_articles` | 公众号最多条数 | 默认 10 |

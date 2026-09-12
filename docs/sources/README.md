@@ -45,8 +45,8 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
 一次请求即可拿到最近投稿的视频（标题/链接/UP名/发布时间 `module_author.pub_ts`），
 **不逐个访问 UP 空间**。按发布时间倒序，返回 `recent_days` 内（默认 1 天，含今日）的视频。
 
-筛选与配置：
-- `bilibili.exclude`：按 UP 名排除（如「冷水先森无人声助眠」「哔哩哔哩课堂」等）。
+筛选与配置（策略存于跟踪文件 `settings.json`）：
+- `bilibili.exclude`：按 UP 名**子串**排除（如「冷水先森无人声助眠」「哔哩哔哩课堂」等）。
 - `bilibili.recent_days`：时间窗口天数，默认 1（从昨日 0 点起）。
 - `bilibili.max_videos`：最多返回条数，默认 10。
 - `bilibili.feed_pages`：动态接口最多翻页数，默认 2。
@@ -79,8 +79,8 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 即起始边界为 18:00（晚上采 → 前一天 18:00 起；早上采 → 前天 18:00 起），结束为当前时刻，
 保证当天更晚的新文章也会被采到；重复推送由 collector 的跨天去重（cutoffs.json）兜底。
 
-过滤与分类（config `wechat.exclude_keywords` / `notify_keywords`，均有默认值）：
-- `exclude_keywords`：标题或账号名命中即排除，默认 `演出余票监控 / 省教育厅 / 三福sanfu`。
+过滤与分类（策略存于跟踪文件 `settings.json`，键 `wechat.exclude_keywords` / `notify_keywords`，均有默认值）：
+- `exclude_keywords`：**仅按 `author`（公众号名）子串匹配**排除，**不匹配标题**（避免误伤正常推文）。
 - `notify_keywords`：标题命中即标记为通知类并排到列表下方，默认覆盖取餐/优惠券/快递等常见服务通知。
 仅保存标题+链接+作者，不存正文。
 

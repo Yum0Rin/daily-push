@@ -95,6 +95,8 @@ def export_site(config_path=None, merge_remote=True):
         f'<script>window.__DAYS__ = {json.dumps(days, ensure_ascii=False)};</script>\n'
         f"<script>\n{js}\n</script>",
     )
+    # The local settings entry must never ship to the public Pages site.
+    html = re.sub(r'<a id="settingsLink".*?</a>\s*', "", html, flags=re.S)
 
     site = _site_dir(cfg)
     os.makedirs(site, exist_ok=True)

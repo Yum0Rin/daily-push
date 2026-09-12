@@ -29,6 +29,30 @@
 避免云端 runner（默认 UTC）把 07:30 北京时间的采集结果写到前一天——这是 2026-08-09
 「网页永远没有 08-09」的根因。
 
+## 配置分层与本地设置页
+
+- `settings_store.py` 负责配置读写与分层：`默认 < settings.json（跟踪的策略） < config.json（gitignore 的密钥）`。
+  `load_config()` 读取时会把 `settings.json` 里的密钥键剔除，策略覆盖 `config.json` 里的旧副本。
+- 写策略/密钥都经白名单 schema 校验，采用「临时文件 + `os.replace`」原子写；写 `config.json` 前先备份 `.bak`。
+- `app.py` 提供本地设置页 `/settings` 与 `/api/settings*`：`/api/*` 统一校验 Host/Origin，且 `/api/settings*`
+  需要每次启动生成的 `X-CSRF-Token`（挡 CSRF 与 DNS rebinding），响应永不返回密钥明文（只回打码值）。
+- 设置页**不参与** `export_site()` 导出：`export_site.py` 会把 `#settingsLink` 从导出 HTML 中剥离，
+  `tests/test_export_isolation.py` 断言导出物不含设置入口/令牌。
+- 云端 `tools/make_cloud_config.py` 现在也从 `settings.json` 读策略，因此「屏蔽名单」本地与云端同源
+  （不再有硬编码副本）。
+
+### 屏蔽名单全量生效链路
+
+- **匹配规则**：B站按 `author` 子串；公众号**仅按 `author`（公众号名）子串**，**不匹配标题**（`sources/wechat_article.py:_is_excluded`），避免误伤。
+- **以后**：采集时过滤；**历史 + 今天**：设置页「保存并应用到全部推送」触发异步任务
+  `tools/purge_ignored.purge_and_publish()` → 删本地库命中条目 → `export_site()` → `push_site()`（Pages）
+  → `git_publish.commit_and_push_settings()`（把 `settings.json` 推到 `code`，云端次日同源过滤）。
+- **只提交 settings.json**：`git_publish.py` 只 `git add/commit -- settings.json`，不碰源码与密钥；
+  无变化跳过；`GIT_TERMINAL_PROMPT=0` 防卡死；有超时；失败只返回错误不抛。
+- **并发**：`app.py` 用全局 `_heavy_lock` 串行化「采集」与「清理+发布」，避免同时写 SQLite / 抢 `site/` git 仓库，冲突返回 429。
+
+> 完整的设置系统说明见 [settings.md](settings.md)。
+
 ## collect_once() 编排（collector.py）
 
 1. `load_config()` 取配置，建 `Storage`。

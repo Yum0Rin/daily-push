@@ -18,6 +18,7 @@
 | 文档 | 内容 |
 |------|------|
 | [architecture.md](architecture.md) | 整体架构：本地/云端两条运行链路、`collect_once` 编排、跨天去重、存储合并语义、静态站导出与发布、失败邮件通知 + Cookie 自动修复、防风控策略 |
+| [settings.md](settings.md) | 本地设置页与配置分层：`settings.json` / `config.json` 分层、`/settings` 与 `/api/settings*`、鉴权与密钥打码、屏蔽名单全量生效（历史/今天/以后）、`git_publish`、并发控制、测试 |
 | [sources/README.md](sources/README.md) | 数据源契约：每个采集器的输出结构、过滤配置、依赖前置 |
 | [frontend.md](frontend.md) | 前端实现：页面结构、渲染逻辑、双数据源（本地 API / 内联 `__DAYS__`）、样式约定与变更记录 |
 | [config-privacy.md](config-privacy.md) | 配置键参考 + 敏感信息处置（Cookie / 解密密钥 / 库文件），**改配置前必读** |
@@ -25,4 +26,4 @@
 
 ## 推荐阅读顺序
 
-新开发者按 架构 → 数据源 → 前端 的顺序读；改 `config.json` 前先读 config-privacy；接手维护先看 status 了解已知问题与近况。
+新开发者按 架构 → 数据源 → 前端 的顺序读；改 `config.json` / `settings.json` 前先读 config-privacy 与 settings；接手维护先看 status 了解已知问题与近况。

@@ -1,6 +1,6 @@
 # 当前状态与已知问题
 
-> 更新日期：2026-08-09
+> 更新日期：2026-09-12
 
 ## 可用能力 ✅
 
@@ -12,6 +12,11 @@
 - 失败重试：采集每 5 分钟、推送每 60 秒，网络恢复后自动补上
 - Cookie 自动修复：回复报错邮件贴新 cookie，云端轮询更新 Secrets + 本地自愈写回 config.json
 - 存储：按日合并（失败不覆盖当天）；`push_date` 固定北京时间（UTC+8）
+- 本地设置页 `/settings`：可视化编辑屏蔽名单 / 平台登录态（Cookie 更新 + 验证）/ 采集参数；
+  仅本机、Host/Origin/CSRF 鉴权、密钥打码
+- 配置分层：`settings.json`（非密钥策略，跟踪入库）与 `config.json`（密钥，gitignore），本地/云端同源
+- 屏蔽词全量生效：保存后清理历史/今天 → 重发 Pages → 推送 `settings.json` 到 `code`（云端次日同源过滤）
+- 单元测试 23 项（标准库 `unittest`，零新依赖）
 
 ## 已知问题 / 限制
 
@@ -20,6 +25,9 @@
 | 小红书 | ⛔ 暂停 | 关注流/推荐流接口均被风控 `300011`；签名已摸清但账号被标记；以后再说 |
 | 网易云客户端播放 | 故障 | orpheus:// 本机无法唤起，只给官网歌曲页链接 |
 | 双端同时触发 cookie-repair | 已知 | 本地与云端若同日同时 cookie 失效，可能双触发轮询（幂等，会重复回结果邮件） |
+| 云端同源 | 前提 | 要让 `settings.json` 在云端生效，`code` 分支必须是**含配置分层的新代码** |
+| 设置页 | 仅本机 | PC 关机时无法访问；`push_time` / `port` 等改完需重启进程才生效 |
+| 云端 Cookie | 未自动同步 | 网页更新的是本机 `config.json`；云端仍走「回复邮件」或手动改 Secrets |
 
 > QQ 群消息与微信群消息采集已移除（2026-08-07，用户不再需要）。
 
@@ -61,6 +69,17 @@
 18. 2026-08-10：本地网易云从 `ncm-cli` 切回 `api`——ncm-cli v0.1.6 命令树无
     `recommend` 子命令，`recommend daily` 报 `unknown command 'recommend'`，采集持续失败；
     `api` 模式（Cookie + :3000）验证可用。
+19. 2026-09-12：配置分层——新增跟踪文件 `settings.json`（非密钥策略）与 `settings_store.py`
+    （`默认 < settings.json < config.json`、schema 校验、原子写、`.bak` 备份、密钥打码）；
+    `config.json` 只留密钥/机器相关；`.gitignore` 增加 `config.json.*`。
+20. 2026-09-12：新增本地设置页 `/settings` 与 `/api/settings*`（登录状态检测/更新 Cookie、
+    屏蔽名单、采集参数）；Host/Origin/CSRF token 鉴权、密钥只回打码值、设置页不参与静态站导出
+    （`export_site.py` 剥离 `#settingsLink`，并有导出隔离测试）。
+21. 2026-09-12：屏蔽名单全量生效——公众号改为**仅按作者（公众号名）子串**匹配、不匹配标题；
+    设置页保存后异步执行 `purge_and_publish()`（清理历史/今天 → 重发 Pages）+
+    `git_publish.commit_and_push_settings()`（只提交 `settings.json` 推到 `code`）；
+    `make_cloud_config.py` 改从 `settings.json` 读策略、删硬编码名单；`_heavy_lock` 串行化采集与发布；
+    修复仪表盘日期选择器 `«`/`»` 跨年 bug；新增 23 项单元测试。
 
 ## 待办（用户可选）
 

@@ -300,9 +300,8 @@ function buildDatePicker() {
   popup.addEventListener("click", (e) => {
     const dir = e.target.getAttribute && e.target.getAttribute("data-dp");
     if (dir) {
-      view = { y: view.y, mo: view.mo + (+dir) };
-      if (view.mo < 0) { view.mo = 11; view.y--; }
-      if (view.mo > 11) { view.mo = 0; view.y++; }
+      const mo = view.mo + (+dir);
+      view = { y: view.y + Math.floor(mo / 12), mo: ((mo % 12) + 12) % 12 };
       render();
       return;
     }
@@ -350,6 +349,9 @@ async function init() {
 
   const brandTitle = document.querySelector(".brand h1");
   if (brandTitle) brandTitle.textContent = "每日推送";
+
+  const settingsLink = $("settingsLink");
+  if (settingsLink && DAYS) settingsLink.style.display = "none";
 
   els.emptyState.textContent = "该日暂无推送记录，每日开机自动采集。";
 
