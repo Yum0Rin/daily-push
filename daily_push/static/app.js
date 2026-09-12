@@ -146,7 +146,7 @@ function renderBili(data) {
     return `
       <li class="gcard">
         <a class="gthumb" href="${esc(u.url)}" target="_blank" rel="noopener">
-          ${pic ? `<img src="${esc(pic)}" loading="lazy" onerror="this.remove()">` : ""}
+          ${pic ? `<img src="${esc(pic)}" loading="lazy" onerror="this.remove()">` : `<span class="gthumb-ph">📺</span>`}
         </a>
         <div class="ginfo">
           <a class="gtitle" href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
@@ -181,7 +181,7 @@ function renderArticles(data) {
     return `
       <li class="gcard${a.notify ? " notify" : ""}">
         <a class="gthumb" href="${esc(a.url)}" target="_blank" rel="noopener">
-          ${pic ? `<img src="${esc(pic)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ""}
+          ${pic ? `<img src="${esc(pic)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : `<span class="gthumb-ph">📰</span>`}
         </a>
         <div class="ginfo">
           <a class="gtitle" href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>

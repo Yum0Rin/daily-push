@@ -121,6 +121,10 @@
     新增 `backfill_wechat_covers()` 从本地微信库回填历史封面（**找不到封面的删除**）；
     `backfill_wechat_history()` 把历史公众号**补到 `max_articles`（现 12/天，新增 118 条）**；
     B站/公众号共用 `.cardgrid` 网格，封面窗口固定 16:9；公众号默认上限改 12；测试 60 项。
+30. 2026-09-12：公众号封面防盗链修复 + 无封面占位——`mmbiz.qpic.cn` 对非微信 Referer 返回占位图，
+    页面加 `<meta name="referrer" content="no-referrer">`（img 亦带 `referrerpolicy`）后云端正常显示；
+    无封面的**非正式推文保留**（不再删除），前端用 `.gthumb-ph` 占位封面（渐变 + 📰/📺）；
+    公众号卡片更宽（B站 3 列 / 公众号 2 列），封面 2.35:1 完整显示，标题固定两行。
 
 ## 待办（用户可选）
 

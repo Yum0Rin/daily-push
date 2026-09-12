@@ -117,45 +117,33 @@ def backfill_covers(storage, cfg, days=7, interval=1.0, log=print):
 def backfill_wechat_covers(storage, cfg, since_days=180, log=print):
     """Backfill covers on stored 公众号 articles from the local WeChat DB (no network).
 
-    Articles whose cover cannot be found are removed (per user request).  If no
-    covers were scanned at all (e.g. WeChat env unavailable), removal is skipped.
+    Articles without a cover are kept (non-standard messages still get pushed);
+    the frontend renders a placeholder for them.
     """
-    from .backfill import promote_reserve
     from .sources.wechat_article import WeChatArticleCollector
-    max_articles = int((cfg.get("wechat") or {}).get("max_articles", 12))
     since = int(time.time()) - max(0, since_days) * 86400
     cmap = WeChatArticleCollector(cfg).cover_map(since_ts=since)
     if not cmap:
-        log("[cover] wechat: 未扫描到封面，跳过删除")
-        return {"wechat_fixed": 0, "wechat_removed": 0, "wechat_covers": 0}
+        log("[cover] wechat: 未扫描到封面，跳过")
+        return {"wechat_fixed": 0, "wechat_covers": 0}
 
     fixed = 0
-    removed = 0
     for d in storage.list_dates():
         row = storage.get(d)
         mp = (row or {}).get("mp")
         if not isinstance(mp, list):
             continue
-        kept = []
         changed = False
         for a in mp:
-            if not isinstance(a, dict):
-                kept.append(a)
-                continue
-            if not a.get("pic") and a.get("url") in cmap:
+            if isinstance(a, dict) and not a.get("pic") and a.get("url") in cmap:
                 a["pic"] = cmap[a["url"]]
                 fixed += 1
                 changed = True
-            if not a.get("pic"):
-                removed += 1
-                changed = True  # 找不到封面 -> 删除
-            else:
-                kept.append(a)
         if changed:
             storage.save(d, netease=row.get("netease"), bilibili=row.get("bilibili"),
-                         mp=promote_reserve(kept, max_articles), overwrite=True)
-    log(f"[cover] wechat: fixed={fixed} removed={removed} covers={len(cmap)}")
-    return {"wechat_fixed": fixed, "wechat_removed": removed, "wechat_covers": len(cmap)}
+                         mp=mp, overwrite=True)
+    log(f"[cover] wechat: fixed={fixed} covers={len(cmap)}")
+    return {"wechat_fixed": fixed, "wechat_covers": len(cmap)}
 
 
 def backfill_wechat_history(storage, cfg, since_days=180, log=print):
