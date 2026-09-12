@@ -30,6 +30,10 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
 
 每首歌额外请求一次热评，失败则置空，不影响整卡。
 
+**评论数过滤（`netease.max_comments`，默认 10000，`0`=不限）**：`/comment/music` 同一次请求就返回
+`total`（评论总数）与 `hotComments`，两用不额外加请求；若某首日推歌曲评论数 **大于** 阈值则
+**跳过并顺延下一首**，直到推满 `max_songs` 首（日推列表取尽仍不足则返回已有的几首）。
+
 ## B站关注UP (sources/bilibili.py) → `bilibili` 字段
 
 数组，每项（一条视频）：

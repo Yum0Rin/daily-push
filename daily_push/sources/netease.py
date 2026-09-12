@@ -31,6 +31,7 @@ class _NeteaseHttp:
         self.base = (netease.get("base_url") or "http://localhost:3000").rstrip("/")
         self.cookie = netease.get("cookie") or ""
         self.max_songs = cfg.get("max_songs", 5)
+        self.max_comments = netease.get("max_comments", 10000)
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
@@ -54,16 +55,20 @@ class _NeteaseHttp:
             raise NeteaseError(f"api error {data.get('code')}: {data.get('msg')}")
         return data
 
-    def _hot_comment(self, song_id):
-        """Return top hot comment text for a song, or '' if unavailable."""
+    def _comment_info(self, song_id):
+        """Return (total_comments or None, top hot comment text).
+
+        One call to ``/comment/music`` yields both the total count and the top
+        hot comment, so filtering by popularity costs nothing extra.
+        """
         try:
             data = self._get("/comment/music", params={"id": song_id, "limit": 1})
+            total = data.get("total")
             hc = data.get("hotComments") or []
-            if hc and hc[0].get("content"):
-                return hc[0]["content"].strip()
+            hot = hc[0]["content"].strip() if hc and hc[0].get("content") else ""
+            return (int(total) if total is not None else None), hot
         except Exception:
-            pass
-        return ""
+            return None, ""
 
     def collect(self):
         if not self.cookie:
@@ -71,7 +76,13 @@ class _NeteaseHttp:
         data = self._get("/recommend/songs")
         songs = (data.get("data") or {}).get("dailySongs") or []
         out = []
-        for s in songs[: self.max_songs]:
+        for s in songs:
+            if len(out) >= self.max_songs:
+                break
+            total, hot = self._comment_info(s.get("id"))
+            # 评论过多的“大众歌”跳过，顺延下一首（max_comments=0 表示不限）
+            if self.max_comments and total is not None and total > self.max_comments:
+                continue
             ar = " / ".join([a.get("name", "") for a in s.get("ar", [])])
             out.append({
                 "id": s.get("id"),
@@ -81,7 +92,7 @@ class _NeteaseHttp:
                 "duration_ms": s.get("dt"),
                 "pic": (s.get("al") or {}).get("picUrl", ""),
                 "url": f"https://music.163.com/song?id={s.get('id')}",
-                "hot_comment": self._hot_comment(s.get("id")),
+                "hot_comment": hot,
             })
         return out
 
@@ -93,6 +104,7 @@ class _NeteaseNcmCli:
 
     def __init__(self, cfg):
         self.max_songs = cfg.get("max_songs", 5)
+        self.max_comments = (cfg.get("netease") or {}).get("max_comments", 10000)
         if shutil.which(self.CMD) is None:
             raise NeteaseError("ncm-cli not found in PATH; install it with "
                                "'npm install -g @music163/ncm-cli'")
@@ -130,25 +142,32 @@ class _NeteaseNcmCli:
         data = self._cli("recommend", "daily", "--limit", str(self.max_songs))
         return data.get("data") or []
 
-    def _hot_comment(self, enc_id):
-        """Top hot comment via official comment API; '' if unavailable."""
+    def _comment_info(self, enc_id):
+        """Best-effort (total_comments or None, top hot comment) via ncm-cli."""
         try:
             data = self._cli("comment", "list-hot", "--type", "song",
                              "--resourceId", str(enc_id),
                              "--limit", "1", "--offset", "0")
             records = (data.get("data") or {}).get("records") or []
-            if records and records[0].get("content"):
-                return records[0]["content"].strip()
+            total = data.get("total")
+            if total is None:
+                total = (data.get("data") or {}).get("total")
+            hot = records[0]["content"].strip() if records and records[0].get("content") else ""
+            return (int(total) if total is not None else None), hot
         except Exception:
-            pass
-        return ""
+            return None, ""
 
     def collect(self):
         songs = self._daily_songs()
         if not songs:
             raise NeteaseError("ncm-cli returned no daily songs")
         out = []
-        for s in songs[: self.max_songs]:
+        for s in songs:
+            if len(out) >= self.max_songs:
+                break
+            total, hot = self._comment_info(s.get("id"))
+            if self.max_comments and total is not None and total > self.max_comments:
+                continue
             ar = " / ".join([a.get("name", "") for a in (s.get("artists") or [])])
             out.append({
                 "id": s.get("originalId"),
@@ -158,7 +177,7 @@ class _NeteaseNcmCli:
                 "duration_ms": s.get("duration"),
                 "pic": s.get("coverImgUrl", ""),
                 "url": f"https://music.163.com/song?id={s.get('originalId')}",
-                "hot_comment": self._hot_comment(s.get("id")),
+                "hot_comment": hot,
             })
         return out
 

@@ -57,5 +57,8 @@
     "important_biz": [],
     "max_articles": 10,
     "mp_cutoff_hour": 18
+  },
+  "netease": {
+    "max_comments": 10000
   }
 }

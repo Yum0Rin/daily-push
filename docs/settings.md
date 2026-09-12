@@ -38,7 +38,8 @@
 
 写入前按显式 schema 校验，拒绝未知键与错误类型（`settings_store.py` 的 `POLICY_SPEC` / `SECRET_SPEC`）：
 
-- 策略：`push_time`(HH:MM)、`max_songs`、`bilibili.{exclude,recent_days,max_videos,feed_pages}`、
+- 策略：`push_time`(HH:MM)、`max_songs`、`netease.max_comments`（评论超阈值则跳过顺延，0=不限）、
+  `bilibili.{exclude,recent_days,max_videos,feed_pages}`、
   `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour}`。
 - 密钥：`netease.{mode,cookie,base_url}`、`bilibili.sessdata`、`email.*`、`site.*`、
   `xiaohongshu.*`、`port`、`data_dir`。
@@ -60,7 +61,7 @@
 |------|------|
 | 🔐 平台登录状态 | 网易云 / B站 是否已配置（值打码）、一键「检测当前」、粘贴新 Cookie「保存并验证」 |
 | 🚫 屏蔽名单 | B站 UP 名、公众号关键词的标签式增删；「保存并应用到全部推送」 |
-| ⚙️ 采集参数 | `push_time`、`max_songs`、`recent_days`、`max_videos`、`feed_pages`、`max_articles`、`mp_cutoff_hour` |
+| ⚙️ 采集参数 | `push_time`、`max_songs`、`netease.max_comments`、`recent_days`、`max_videos`、`feed_pages`、`max_articles`、`mp_cutoff_hour` |
 | 🩺 运行状态 | 上次采集 / 上次推送 / 上次清理发布 / 上次各平台检测时间 |
 | 💾 配置备份 | 下载当前 `config.json`（含密钥，仅本机）/ 上传还原（覆盖前自动 `.bak`） |
 

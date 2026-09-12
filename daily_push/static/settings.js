@@ -177,6 +177,7 @@ function renderChips() {
 const PARAMS = [
   { path: ["push_time"], label: "每日采集时间 (HH:MM)", type: "time" },
   { path: ["max_songs"], label: "网易云歌曲数", type: "number" },
+  { path: ["netease", "max_comments"], label: "网易云最大评论数（超过则跳过，0=不限）", type: "number" },
   { path: ["bilibili", "recent_days"], label: "B站时间窗口（天）", type: "number" },
   { path: ["bilibili", "max_videos"], label: "B站最多条数", type: "number" },
   { path: ["bilibili", "feed_pages"], label: "B站动态翻页数（每页上限约20条）", type: "number" },

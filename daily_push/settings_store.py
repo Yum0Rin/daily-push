@@ -92,6 +92,9 @@ def _enum(options):
 POLICY_SPEC = {
     "push_time": _hhmm,
     "max_songs": _int(1, 50),
+    "netease": {
+        "max_comments": _int(0, 1000000000),
+    },
     "bilibili": {
         "exclude": _str_list,
         "recent_days": _int(1, 30),
