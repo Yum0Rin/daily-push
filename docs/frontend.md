@@ -89,6 +89,9 @@ main:
 - B站与公众号共用 `.cardgrid` 网格：B站窄屏 2 列 / 宽屏 3 列；**公众号卡片更宽**（窄屏 1 列 / 宽屏 2 列）。
 - 封面：B站 16:9；公众号按微信 **2.35:1 完整显示**（卡片更宽故不显小）；公众号标题**固定两行**
   （单行也占两行高，超出显示省略号）。
+- 公众号封面防盗链：`mmbiz.qpic.cn` 对非微信 Referer 返回「不允许引用」占位图。
+  页面 `<head>` 加 `<meta name="referrer" content="no-referrer">`（img 也带 `referrerpolicy="no-referrer"`），
+  浏览器不发送 Referer → 微信返回真图（本地另有 `Referrer-Policy: no-referrer` 响应头，Pages 靠该 meta）。
 - B站封面取动态 `archive.cover`；公众号封面取 appmsg `thumburl` / `cover_16_9`（`mmbiz.qpic.cn`）。
 - 网易云封面 URL 规范为 `https://`（修复被 CSP / 混内容拦截）；前端也对旧数据兜底替换。
 - 三张卡片（音乐/B站/公众号）均过滤 `hidden` 隐藏缓冲项，summary 计数同样排除。
