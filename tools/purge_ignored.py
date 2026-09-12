@@ -15,6 +15,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from daily_push.config import load_config
+from daily_push.backfill import promote_reserve
 from daily_push.storage import Storage
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +24,8 @@ PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def purge(storage, cfg):
     bili_exclude = [str(k) for k in cfg.get("bilibili", {}).get("exclude", [])]
     mp_exclude = [str(k) for k in cfg.get("wechat", {}).get("exclude_keywords", [])]
+    max_videos = int(cfg.get("bilibili", {}).get("max_videos", 10))
+    max_articles = int(cfg.get("wechat", {}).get("max_articles", 10))
     removed = {"bilibili": [], "mp": []}
     for d in storage.list_dates():
         row = storage.get(d)
@@ -30,27 +33,29 @@ def purge(storage, cfg):
             continue
         changed = False
         if row.get("bilibili"):
-            kept = []
+            kept, hit = [], False
             for it in row["bilibili"]:
                 author = (it or {}).get("author", "")
                 if any(k and k in author for k in bili_exclude):
                     removed["bilibili"].append((d, author))
-                    changed = True
+                    hit = True
                 else:
                     kept.append(it)
-            if changed:
-                row["bilibili"] = kept
+            if hit:
+                row["bilibili"] = promote_reserve(kept, max_videos)
+                changed = True
         if row.get("mp"):
-            kept = []
+            kept, hit = [], False
             for it in row["mp"]:
                 author = (it or {}).get("author", "")
                 if any(k and k in author for k in mp_exclude):
                     removed["mp"].append((d, author))
-                    changed = True
+                    hit = True
                 else:
                     kept.append(it)
-            if changed:
-                row["mp"] = kept
+            if hit:
+                row["mp"] = promote_reserve(kept, max_articles)
+                changed = True
         if changed:
             storage.save(d, netease=row.get("netease"),
                          bilibili=row.get("bilibili") or None,
@@ -59,10 +64,31 @@ def purge(storage, cfg):
     return removed
 
 
-def purge_and_publish(cfg=None, config_path=None):
-    """Remove ignored entries from ALL history/today, re-export and push Pages.
+def _build_netease_stats(cfg):
+    """stats(song_id) -> (comment_count | None, favorite_count | None)."""
+    try:
+        from daily_push.sources.netease import NeteaseCollector
+        collector = NeteaseCollector(cfg)
+    except Exception:
+        return None
 
-    Returns a stats dict: removal counts, export path, push result/error.
+    def stats(song_id):
+        try:
+            total, _ = collector._comment_info(song_id)
+        except Exception:
+            total = None
+        try:
+            fav = collector._red_count(song_id)
+        except Exception:
+            fav = None
+        return total, fav
+    return stats
+
+
+def purge_and_publish(cfg=None, config_path=None, netease_stats=None):
+    """Backfill counts + remove ignored/over-commented entries, then republish.
+
+    Returns a stats dict: removal counts, backfill count, export path, push result.
     Used both by the CLI and by the local settings page.
     """
     cfg = cfg or load_config(config_path)
@@ -74,6 +100,18 @@ def purge_and_publish(cfg=None, config_path=None):
     # export's merge would re-introduce ignored entries and push them back.
     merge_remote_history(storage, cfg)
     removed = purge(storage, cfg)
+
+    # netease: backfill comment/favorite counts + drop over-threshold songs
+    from daily_push.netease_history import apply_history
+    netease_cfg = cfg.get("netease") or {}
+    max_comments = netease_cfg.get("max_comments", 10000)
+    max_favorites = netease_cfg.get("max_favorites", 0)
+    interval = float(netease_cfg.get("request_interval", 0.3))
+    if netease_stats is None:
+        netease_stats = _build_netease_stats(cfg)
+    netease_result = apply_history(storage, max_comments, max_favorites,
+                                   netease_stats, interval,
+                                   shown_target=int(cfg.get("max_songs", 5)))
     storage.close()
 
     exported = export_site(config_path=config_path, merge_remote=False)  # history already merged
@@ -86,6 +124,8 @@ def purge_and_publish(cfg=None, config_path=None):
     return {
         "removed_bilibili": len(removed["bilibili"]),
         "removed_mp": len(removed["mp"]),
+        "removed_netease": len(netease_result["removed"]),
+        "backfilled_netease": netease_result["backfilled"],
         "exported": exported,
         "pushed": pushed,
         "push_error": push_error,

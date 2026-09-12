@@ -30,6 +30,7 @@ class BiliCollector:
         self.recent_days = int(bili.get("recent_days", 1))
         self.max_videos = int(bili.get("max_videos", 10))
         self.feed_pages = int(bili.get("feed_pages", 2))
+        self.reserve = int(bili.get("reserve", 3))
         self.session = requests.Session()
         self.session.headers.update({
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36",
@@ -108,6 +109,7 @@ class BiliCollector:
         cutoff = datetime.datetime.combine(
             datetime.date.today() - datetime.timedelta(days=self.recent_days),
             datetime.time.min).timestamp()
+        limit = self.max_videos + max(0, self.reserve)  # 多取几条作为隐藏缓冲
         entries, seen_bvid, offset = [], set(), ""
         for _ in range(self.feed_pages):
             params = {"type": "video"}
@@ -132,14 +134,22 @@ class BiliCollector:
                 if created < cutoff:
                     continue
                 seen_bvid.add(bvid)
+                cover = archive.get("cover") or ""
+                if cover.startswith("http://"):
+                    cover = "https://" + cover[len("http://"):]
                 entries.append({
                     "title": archive.get("title", ""),
                     "url": f"https://www.bilibili.com/video/{bvid}",
                     "author": name,
                     "created": created,
+                    "pic": cover,
                 })
-            if not data.get("has_more") or not items or len(entries) >= self.max_videos:
+            if not data.get("has_more") or not items or len(entries) >= limit:
                 break
             offset = data.get("offset")
         entries.sort(key=lambda e: e["created"], reverse=True)
-        return entries[: self.max_videos]
+        entries = entries[:limit]
+        for i, e in enumerate(entries):
+            if i >= self.max_videos:
+                e["hidden"] = True
+        return entries

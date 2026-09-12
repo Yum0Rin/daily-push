@@ -178,11 +178,15 @@ const PARAMS = [
   { path: ["push_time"], label: "每日采集时间 (HH:MM)", type: "time" },
   { path: ["max_songs"], label: "网易云歌曲数", type: "number" },
   { path: ["netease", "max_comments"], label: "网易云最大评论数（超过则跳过，0=不限）", type: "number" },
+  { path: ["netease", "max_favorites"], label: "网易云最大收藏数（超过则跳过，0=不限）", type: "number" },
+  { path: ["netease", "reserve"], label: "网易云预留条数（隐藏缓冲）", type: "number" },
   { path: ["bilibili", "recent_days"], label: "B站时间窗口（天）", type: "number" },
   { path: ["bilibili", "max_videos"], label: "B站最多条数", type: "number" },
   { path: ["bilibili", "feed_pages"], label: "B站动态翻页数（每页上限约20条）", type: "number" },
+  { path: ["bilibili", "reserve"], label: "B站预留条数（隐藏缓冲）", type: "number" },
   { path: ["wechat", "max_articles"], label: "公众号最多条数", type: "number" },
   { path: ["wechat", "mp_cutoff_hour"], label: "公众号窗口起点（时）", type: "number" },
+  { path: ["wechat", "reserve"], label: "公众号预留条数（隐藏缓冲）", type: "number" },
 ];
 
 function getPath(obj, path) {
@@ -218,6 +222,28 @@ async function saveParams() {
   } catch (e) { toast(e.message, false); }
 }
 
+async function applyAndPublish(btn, busyText) {
+  btn.textContent = busyText || "清理历史并发布…";
+  await api("/api/settings/purge", { method: "POST", body: {} });
+  const s = await waitPurge();
+  if (s.error) { toast("清理失败：" + s.error, false); return; }
+  const r = s.result || {};
+  const total = (r.removed_bilibili || 0) + (r.removed_mp || 0) + (r.removed_netease || 0);
+  const bf = r.backfilled_netease || 0;
+  const parts = [`清理 ${total} 条`];
+  if (bf) parts.push(`补全 ${bf} 首评论/收藏`);
+  const sp = r.settings_publish || {};
+  if (r.push_error) {
+    toast(`已${parts.join("，")}，但 Pages 推送失败：${r.push_error}`, false);
+  } else if (sp.committed && !sp.pushed) {
+    toast(`已${parts.join("，")}并发布 Pages；云端同步失败：${sp.detail}`, false);
+  } else if (sp.pushed) {
+    toast(`已保存：${parts.join("，")}，Pages 与云端均已同步`, true);
+  } else {
+    toast(`已保存：${parts.join("，")}，已重新发布`, true);
+  }
+}
+
 async function savePolicy() {
   const btn = $("savePolicy");
   const old = btn.textContent;
@@ -230,22 +256,23 @@ async function savePolicy() {
   try {
     const d = await api("/api/settings/policy", { method: "POST", body: { policy } });
     state.policy = d.policy || state.policy;
-    btn.textContent = "清理历史并发布…";
-    await api("/api/settings/purge", { method: "POST", body: {} });
-    const s = await waitPurge();
-    if (s.error) { toast("清理失败：" + s.error, false); return; }
-    const r = s.result || {};
-    const total = (r.removed_bilibili || 0) + (r.removed_mp || 0);
-    const sp = r.settings_publish || {};
-    if (r.push_error) {
-      toast(`已清理 ${total} 条，但 Pages 推送失败：${r.push_error}`, false);
-    } else if (sp.committed && !sp.pushed) {
-      toast(`已清理 ${total} 条并发布 Pages；云端同步失败：${sp.detail}`, false);
-    } else if (sp.pushed) {
-      toast(`已保存：清理 ${total} 条，Pages 与云端均已同步`, true);
-    } else {
-      toast(`已保存，清理 ${total} 条并重新发布`, true);
-    }
+    await applyAndPublish(btn);
+  } catch (e) {
+    toast(e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+async function saveParamsApply() {
+  const btn = $("saveParams");
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "保存中…";
+  try {
+    await saveParams();
+    await applyAndPublish(btn, "应用到全部推送…");
   } catch (e) {
     toast(e.message, false);
   } finally {
@@ -360,7 +387,7 @@ async function restoreConfig(e) {
 async function init() {
   initTheme();
   $("savePolicy").addEventListener("click", savePolicy);
-  $("saveParams").addEventListener("click", saveParams);
+  $("saveParams").addEventListener("click", saveParamsApply);
   $("downloadConfig").addEventListener("click", downloadConfig);
   $("restoreConfig").addEventListener("click", () => $("restoreFile").click());
   $("restoreFile").addEventListener("change", restoreConfig);

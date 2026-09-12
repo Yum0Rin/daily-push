@@ -94,12 +94,15 @@ POLICY_SPEC = {
     "max_songs": _int(1, 50),
     "netease": {
         "max_comments": _int(0, 1000000000),
+        "max_favorites": _int(0, 10000000000),
+        "reserve": _int(0, 20),
     },
     "bilibili": {
         "exclude": _str_list,
         "recent_days": _int(1, 30),
         "max_videos": _int(1, 100),
         "feed_pages": _int(1, 10),
+        "reserve": _int(0, 20),
     },
     "wechat": {
         "exclude_keywords": _str_list,
@@ -107,6 +110,7 @@ POLICY_SPEC = {
         "important_biz": _str_list,
         "max_articles": _int(1, 100),
         "mp_cutoff_hour": _int(0, 23),
+        "reserve": _int(0, 20),
     },
 }
 

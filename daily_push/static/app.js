@@ -99,56 +99,71 @@ function renderGroups(el, groups) {
   return true;
 }
 
+function fmtCount(n, icon) {
+  if (n === null || n === undefined || n === "") return "";
+  const v = Number(n);
+  if (!isFinite(v)) return "";
+  const txt = v >= 10000 ? (v / 10000).toFixed(1).replace(/\.0$/, "") + "w" : String(v);
+  return `<span class="cstat">${icon} ${txt}</span>`;
+}
+
 function renderMusic(data) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
-  els.cardMusic.style.display = (isErr || (Array.isArray(data) && data.length > 0)) ? "" : "none";
+  const list = Array.isArray(data) ? data.filter((s) => !s.hidden) : [];
+  els.cardMusic.style.display = (isErr || list.length > 0) ? "" : "none";
   if (isErr) {
     els.songs.innerHTML = errBlock("netease", data.error);
     return;
   }
-  els.songs.innerHTML = Array.isArray(data)
-    ? data.map((s) => `
+  els.songs.innerHTML = list.map((s) => {
+    const pic = (s.pic || "").replace(/^http:/, "https:");
+    return `
         <li>
           <span class="rank"></span>
-          ${s.pic ? `<img src="${esc(s.pic)}" onerror="this.style.display='none'">` : ""}
+          ${pic ? `<img src="${esc(pic)}" loading="lazy" onerror="this.style.display='none'">` : ""}
           <div class="meta">
             <div class="title">${esc(s.name)}</div>
             <div class="artist">${esc(s.artists)}${s.album ? " · " + esc(s.album) : ""}</div>
+            ${(s.favorite_count != null || s.comment_count != null)
+              ? `<div class="stats">${fmtCount(s.favorite_count, "❤️")}${fmtCount(s.comment_count, "💬")}</div>` : ""}
             ${s.hot_comment ? `<div class="comment">"${esc(s.hot_comment)}"</div>` : ""}
           </div>
           ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">▶ 播放</a>` : ""}
-        </li>`).join("")
-    : "";
+        </li>`;
+  }).join("");
 }
 
 function renderBili(data) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
-  els.cardBili.style.display = (isErr || (Array.isArray(data) && data.length > 0)) ? "" : "none";
+  const list = Array.isArray(data) ? data.filter((u) => !u.hidden) : [];
+  els.cardBili.style.display = (isErr || list.length > 0) ? "" : "none";
   if (isErr) {
     els.ups.innerHTML = errBlock("bilibili", data.error);
     return;
   }
-  if (!Array.isArray(data)) {
-    els.ups.innerHTML = "";
-    return;
-  }
-  els.ups.innerHTML = data.map((u) => `
-    <li>
-      <div class="ainfo">
-        <a href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
-        ${u.author ? `<span class="author">${esc(u.author)}</span>` : ""}
-      </div>
-      <div class="aside">
-        ${u.created ? `<span class="time">${esc(fmtCreated(u.created))}</span>` : ""}
-      </div>
-    </li>`
-  ).join("");
+  els.ups.innerHTML = list.map((u) => {
+    const pic = (u.pic || "").replace(/^http:/, "https:");
+    return `
+      <li class="vcard">
+        ${pic ? `<a class="vthumb" href="${esc(u.url)}" target="_blank" rel="noopener">
+          <img src="${esc(pic)}" loading="lazy" onerror="this.remove()">
+        </a>` : ""}
+        <div class="vinfo">
+          <a class="vtitle" href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
+          <div class="vmeta">
+            ${u.author ? `<span class="author">${esc(u.author)}</span>` : ""}
+            ${u.created ? `<span class="time">${esc(fmtCreated(u.created))}</span>` : ""}
+          </div>
+        </div>
+      </li>`;
+  }).join("");
 }
 
 function renderArticles(data) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
-  const empty = !Array.isArray(data) || data.length === 0;
-  els.cardMp.style.display = (isErr || (Array.isArray(data) && data.length > 0) || empty) ? "" : "none";
+  const list = Array.isArray(data) ? data.filter((a) => !a.hidden) : [];
+  const empty = list.length === 0;
+  els.cardMp.style.display = (isErr || list.length > 0 || empty) ? "" : "none";
   if (isErr) {
     els.mpList.innerHTML = errBlock("mp", data.error);
     return;
@@ -161,7 +176,7 @@ function renderArticles(data) {
       : `<div class="module-note">📰 今日暂无新公众号推文。</div>`;
     return;
   }
-  els.mpList.innerHTML = data.map((a) => `
+  els.mpList.innerHTML = list.map((a) => `
     <li${a.notify ? ' class="notify"' : ""}>
       <div class="ainfo">
         <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>
@@ -180,7 +195,7 @@ function render(data) {
   renderBili(data.bilibili);
   renderArticles(data.mp);
 
-  const hasData = (x) => (Array.isArray(x) && x.length) ||
+  const hasData = (x) => (Array.isArray(x) && x.some((i) => !i.hidden)) ||
     (x && typeof x === "object" && !Array.isArray(x) && x.error);
   const any = hasData(data.netease) || hasData(data.bilibili) || hasData(data.mp);
   els.emptyState.style.display = any ? "none" : "";
@@ -191,9 +206,10 @@ function render(data) {
 }
 
 function renderSummary(data) {
-  const n = Array.isArray(data.netease) ? data.netease.length : 0;
-  const mp = Array.isArray(data.mp) ? data.mp.length : 0;
-  const bili = Array.isArray(data.bilibili) ? data.bilibili.length : 0;
+  const shown = (x) => (Array.isArray(x) ? x.filter((i) => !i.hidden).length : 0);
+  const n = shown(data.netease);
+  const mp = shown(data.mp);
+  const bili = shown(data.bilibili);
   const stat = (target, label, val) => `
     <button class="stat" data-target="${target}"${val ? "" : " disabled"}>
       <div class="label">${label}</div><div class="value">${val}</div>
@@ -357,8 +373,6 @@ async function init() {
 
   const biliTitle = document.querySelector("#card-bili h2");
   if (biliTitle) biliTitle.textContent = "📺 B站 UP动态";
-
-  els.ups.classList.add("articles");
 
   els.summary.addEventListener("click", (e) => {
     const btn = e.target.closest(".stat");

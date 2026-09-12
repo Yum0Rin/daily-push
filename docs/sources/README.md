@@ -10,7 +10,9 @@
 {
   "id": 123456, "name": "歌名", "artists": "歌手1 / 歌手2", "album": "专辑",
   "duration_ms": 217000, "pic": "封面图URL", "url": "官网歌曲页链接",
-  "hot_comment": "最火热评文本（/comment/music，可为空字符串）"
+  "hot_comment": "最火热评文本（/comment/music，可为空字符串）",
+  "comment_count": 4839,        // 评论总数（/comment/music 的 total）
+  "favorite_count": 244451      // 收藏/红心数（/song/red/count 的 data.count）
 }
 ```
 数据来源可通过 config `netease.mode` 切换：
@@ -30,9 +32,15 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
 
 每首歌额外请求一次热评，失败则置空，不影响整卡。
 
-**评论数过滤（`netease.max_comments`，默认 10000，`0`=不限）**：`/comment/music` 同一次请求就返回
-`total`（评论总数）与 `hotComments`，两用不额外加请求；若某首日推歌曲评论数 **大于** 阈值则
-**跳过并顺延下一首**，直到推满 `max_songs` 首（日推列表取尽仍不足则返回已有的几首）。
+**评论数 / 收藏数**：`/comment/music` 同一次请求返回 `total`（评论总数）与 `hotComments`（热评）；
+收藏数走 `/song/red/count`（`data.count`）。两者都写入结果（`comment_count` / `favorite_count`）。
+为防风控，请求之间默认 sleep `netease.request_interval`（默认 0.3s）。
+
+**评论数 / 收藏数过滤**（`netease.max_comments` 默认 10000，`netease.max_favorites` 默认 0=不限）：
+任一项 **大于** 对应阈值即 **跳过并顺延下一首**，直到推满 `max_songs` 首（日推列表取尽仍不足则返回已有的几首）。
+
+**封面 / 隐藏缓冲**：`pic` 统一规范成 `https://`（否则 https 页面或 CSP 会拦截 http 图）；
+额外多取 `netease.reserve`（默认 3）条并标 `"hidden": true` 作**隐藏缓冲**，被忽略/过滤后可回填，前端不显示。
 
 ## B站关注UP (sources/bilibili.py) → `bilibili` 字段
 
@@ -42,7 +50,8 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
   "title": "视频标题",
   "url": "https://www.bilibili.com/video/BVxxx",
   "author": "UP名",
-  "created": 1754623229
+  "created": 1754623229,
+  "pic": "视频封面URL（动态 archive.cover，统一 https）"
 }
 ```
 数据来自「关注动态」接口（`x/polymer/web-dynamic/v1/feed/all?type=video`），
@@ -54,6 +63,7 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
 - `bilibili.recent_days`：时间窗口天数，默认 1（从昨日 0 点起）。
 - `bilibili.max_videos`：最多返回条数，默认 10。
 - `bilibili.feed_pages`：动态接口最多翻页数，默认 2。
+- `bilibili.reserve`：隐藏缓冲条数，默认 3（多取几条标 `hidden` 供回填，前端不显示）。
 - `bilibili.sessdata`：登录 Cookie（动态接口需 WBI 签名 + 登录态）。
 
 ## ~~QQ群消息~~ / ~~微信群消息~~（已移除）
@@ -77,7 +87,8 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 数据来源：微信解密后的 `biz_message_*.db`（公众号库，动态发现全部库，含今日推文），
 提取 appmsg XML 的 `<title>`、`<url>` 与 `<mmreader><category><name>`（公众号名）。
 排序：内容推文在前、通知类在后，各自按发布时间倒序，默认取 10 条
-（config `wechat.max_articles`）。
+（`wechat.max_articles`）；额外多取 `wechat.reserve`（默认 3）条标 `"hidden": true`
+作隐藏缓冲，被忽略后可回填，前端不显示。
 
 **时间窗口**（config `wechat.mp_cutoff_hour`，默认 18）：窗口 = 最近一次「当天 18:00」之后 ~ 当前时刻。
 即起始边界为 18:00（晚上采 → 前一天 18:00 起；早上采 → 前天 18:00 起），结束为当前时刻，

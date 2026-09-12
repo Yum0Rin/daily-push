@@ -37,6 +37,7 @@ class WeChatArticleCollector:
                 "排队", "发货", "日报", "账单", "领取", "优惠券"])]
         self.max_articles = int(c.get("max_articles", 10))
         self.mp_cutoff_hour = int(c.get("mp_cutoff_hour", 18))
+        self.reserve = int(c.get("reserve", 3))
 
     def _is_excluded(self, author, title=""):
         """公众号屏蔽只按作者（公众号名）做子串匹配。
@@ -164,4 +165,9 @@ class WeChatArticleCollector:
         if self.important_biz:
             unique = [a for a in unique
                       if any(k in a["title"] for k in self.important_biz)]
-        return unique[: self.max_articles]
+        limit = self.max_articles + max(0, self.reserve)
+        unique = unique[:limit]
+        for i, a in enumerate(unique):
+            if i >= self.max_articles:
+                a["hidden"] = True
+        return unique

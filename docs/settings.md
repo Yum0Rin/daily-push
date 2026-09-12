@@ -38,9 +38,10 @@
 
 写入前按显式 schema 校验，拒绝未知键与错误类型（`settings_store.py` 的 `POLICY_SPEC` / `SECRET_SPEC`）：
 
-- 策略：`push_time`(HH:MM)、`max_songs`、`netease.max_comments`（评论超阈值则跳过顺延，0=不限）、
-  `bilibili.{exclude,recent_days,max_videos,feed_pages}`、
-  `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour}`。
+- 策略：`push_time`(HH:MM)、`max_songs`、
+  `netease.{max_comments,max_favorites,reserve}`、
+  `bilibili.{exclude,recent_days,max_videos,feed_pages,reserve}`、
+  `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour,reserve}`。
 - 密钥：`netease.{mode,cookie,base_url}`、`bilibili.sessdata`、`email.*`、`site.*`、
   `xiaohongshu.*`、`port`、`data_dir`。
 
@@ -61,7 +62,7 @@
 |------|------|
 | 🔐 平台登录状态 | 网易云 / B站 是否已配置（值打码）、一键「检测当前」、粘贴新 Cookie「保存并验证」 |
 | 🚫 屏蔽名单 | B站 UP 名、公众号关键词的标签式增删；「保存并应用到全部推送」 |
-| ⚙️ 采集参数 | `push_time`、`max_songs`、`netease.max_comments`、`recent_days`、`max_videos`、`feed_pages`、`max_articles`、`mp_cutoff_hour` |
+| ⚙️ 采集参数 | `push_time`、`max_songs`、`netease.max_comments/max_favorites/reserve`、`recent_days`、`max_videos`、`feed_pages`、`max_articles`、`mp_cutoff_hour`、各源 `reserve`；「保存参数」右侧 ⓘ 说明调整会应用到全部 |
 | 🩺 运行状态 | 上次采集 / 上次推送 / 上次清理发布 / 上次各平台检测时间 |
 | 💾 配置备份 | 下载当前 `config.json`（含密钥，仅本机）/ 上传还原（覆盖前自动 `.bak`） |
 
@@ -130,6 +131,15 @@ git add settings.json && git commit -m "chore: 更新 settings.json" && git push
 ```
 
 > 设置页「保存并应用到全部推送」会自动完成上面 3 步（并额外经 `git_publish` 提交推送）。
+
+### 评论/收藏过滤应用到历史
+
+「采集参数」卡的「保存参数」按钮（右侧 ⓘ 说明「调整会应用到全部」）保存后即执行同一个清理发布任务：
+`apply_history()` 对历史中**缺失**评论数/收藏数的条目**逐首补全**（`/comment/music` 取 `total`、
+`/song/red/count` 取 `data.count`，请求间隔 `netease.request_interval`，默认 0.3s 防风控），
+再按 `netease.max_comments` / `netease.max_favorites` 删除超阈值歌曲，然后重发 Pages + 推送 `settings.json`。
+删除后会从**隐藏缓冲**（`hidden`）里顺延补满（到 `max_songs`）；B站 / 公众号的忽略删除同理（补到 `max_videos` / `max_articles`）。
+「保存并应用到全部推送」（屏蔽名单）也会顺带执行这一步。
 
 ## 5. 本地 → 云端 Cookie 同步（`gh secret set`）
 
@@ -206,3 +216,10 @@ python -m unittest discover -s tests -t .
   **远端独有日期** + `Storage.save(overwrite=True)` 清空字段；B站屏蔽空串防御；
   云端 `gh secret set` 改 stdin；`start.py` 静默启动、**首次成功推送后才开网页**、`push_time` 热更新；
   设置页新增运行状态卡、配置备份/还原、安全响应头、ⓘ 悬停引导；测试增至 44 项。
+- **2026-09-12（三）**：网易云采集**评论数 + 收藏数**（`comment_count` / `favorite_count`，
+  后者走 `/song/red/count`），请求间隔默认 0.3s 防风控；新增 `netease.max_favorites`（默认 0=不限）；
+  历史条目经「保存参数」（右侧 ⓘ）**补全**这两个数并按 `max_comments` / `max_favorites` 过滤；
+  仪表盘显示 ❤️/💬；测试增至 50 项。
+- **2026-09-12（四）**：网易云封面规范为 `https://`（修复被 CSP / 混内容拦截）；
+  B站动态采集封面（`archive.cover`）并改为**品字布局**；各源新增**隐藏缓冲** `reserve`（默认 3），
+  被忽略 / 过滤后从缓冲**顺延补满**；`AGENTS.md` 增加「爬取必须控频」约定；测试增至 54 项。

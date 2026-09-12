@@ -28,6 +28,8 @@
 | `netease.cookie` | 网易云登录态 `MUSIC_U=...` | 浏览器登录网易云后复制 |
 | `netease.base_url` | 网易云API地址 | 默认 `http://localhost:3000` |
 | `netease.max_comments` | 日推评论数阈值 | 评论数**大于**该值的歌跳过、顺延下一首；`0`=不限（默认 10000）。存于 `settings.json` |
+| `netease.max_favorites` | 日推收藏数阈值 | 收藏数**大于**该值的歌跳过、顺延下一首；`0`=不限（默认 0）。存于 `settings.json` |
+| `netease.reserve` / `bilibili.reserve` / `wechat.reserve` | 各源隐藏缓冲条数 | 默认 3；多取的条目标 `hidden` 供回填，前端不显示。存于 `settings.json` |
 | `bilibili.sessdata` | B站 Cookie 中 `SESSDATA` | 浏览器登录 B站后复制（动态接口需登录态 + WBI 签名） |
 | `bilibili.exclude` | 按 UP 名**子串**排除的动态 | 存于 `settings.json`（跟踪入库） |
 | `bilibili.recent_days` | 时间窗口天数 | 默认 1 |
