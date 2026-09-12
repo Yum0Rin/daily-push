@@ -85,6 +85,18 @@ class SettingsApiTest(unittest.TestCase):
                             base_url="http://evil.example")
         self.assertEqual(r.status_code, 403)
 
+    def test_cloud_endpoints_require_token(self):
+        self.assertEqual(self.client.get("/api/settings/cloud-status").status_code, 403)
+        self.assertEqual(
+            self.client.post("/api/settings/sync-cloud",
+                             json={"sources": ["bilibili"]}).status_code, 403)
+
+    def test_sync_cloud_without_repo_reports_error(self):
+        r = self.client.post("/api/settings/sync-cloud",
+                             json={"sources": ["bilibili"]}, headers=self._h())
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(r.get_json()["results"]["bilibili"]["ok"])
+
 
 if __name__ == "__main__":
     unittest.main()

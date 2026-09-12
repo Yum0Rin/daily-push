@@ -177,9 +177,10 @@ python start.py                    # 一键启动（或 python start.py --no-col
 - ✅ Cookie 失效自动修复：回复报错邮件贴新 Cookie，云端每 10 分钟轮询并更新 Secrets，本地自愈写回 config.json。
 - ✅ 网络/登录失败自动耐心重试：采集每 5 分钟、推送每 60 秒，恢复后自动补上。
 - ✅ 本地设置页 `/settings`：可视化编辑屏蔽名单 / 平台登录态（含 Cookie 更新与验证）/ 采集参数；仅本机可访问。
+- ✅ 本地 → 云端 Cookie 同步：设置页勾「同步云端」经 `gh secret set` 直写云端 Secrets；邮件 `cookie-repair` 流程保留兜底。
 - ✅ 屏蔽词全量生效：保存后清理历史与今天、重发 Pages，并把 `settings.json` 推到 `code` 供云端采集同源过滤。
 - ✅ 配置分层：`settings.json`（非密钥策略，跟踪入库）与 `config.json`（密钥，gitignore），本地/云端同源。
-- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖）。
+- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 31 项）。
 - ⛔ 小红书已暂停（接口被风控 `300011`，签名已摸清但账号被标记，见 `docs/sources/README.md`）。
 - 网易云只提供官网歌曲页链接（`orpheus://` 客户端协议本机无法唤起）。
 - 公众号采集依赖本机微信解密环境，云端不采集 mp（但本地 mp 会在推送时随站点合并保留）。

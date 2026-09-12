@@ -266,6 +266,32 @@ def create_app(config_path=None, settings_path=None):
             results[source] = {"ok": bool(ok), "detail": detail}
         return jsonify({"results": results})
 
+    # -- local -> cloud credential sync (gh secret set) ----------------------
+    @app.route("/api/settings/cloud-status")
+    def api_settings_cloud_status():
+        from . import cloud_secrets
+        return jsonify(cloud_secrets.cloud_status(_cfg()))
+
+    @app.route("/api/settings/sync-cloud", methods=["POST"])
+    def api_settings_sync_cloud():
+        body = request.get_json(silent=True) or {}
+        sources = body.get("sources") or []
+        cfg = _cfg()
+        values = {}
+        for s in sources:
+            if s == "netease":
+                v = (cfg.get("netease") or {}).get("cookie") or ""
+            elif s == "bilibili":
+                v = (cfg.get("bilibili") or {}).get("sessdata") or ""
+            else:
+                continue
+            if v:
+                values[s] = v
+        if not values:
+            return jsonify({"error": "没有可同步的凭证"}), 400
+        from . import cloud_secrets
+        return jsonify({"results": cloud_secrets.sync_cookies(cfg, values)})
+
     # -- apply ignore lists to history + today, then republish ---------------
     _purge_state = {
         "running": False,

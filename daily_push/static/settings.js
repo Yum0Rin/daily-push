@@ -56,6 +56,9 @@ function renderAuth() {
         <div class="authactions">
           <button class="ghost checkBtn">检测当前</button>
           <button class="saveBtn">保存并验证</button>
+          <label class="cloudsync" title="保存后同时更新云端 GitHub Secrets（需本机 gh 已登录）">
+            <input type="checkbox" checked> 同步云端
+          </label>
         </div>
         <div class="authresult"></div>
       </div>`;
@@ -65,6 +68,13 @@ function renderAuth() {
     const src = card.dataset.src;
     const input = card.querySelector(".authinput");
     const result = card.querySelector(".authresult");
+    const syncLabel = card.querySelector(".cloudsync");
+    const syncBox = syncLabel ? syncLabel.querySelector("input") : null;
+    if (syncBox && !(state.cloud && state.cloud.available)) {
+      syncBox.checked = false;
+      syncBox.disabled = true;
+      syncLabel.title = (state.cloud && state.cloud.detail) || "云端同步不可用";
+    }
 
     card.querySelector(".checkBtn").addEventListener("click", async () => {
       result.className = "authresult";
@@ -85,8 +95,17 @@ function renderAuth() {
         const v = await api("/api/settings/verify", { method: "POST", body: { source: src, value } });
         if (!v.ok) { setResult(card, false, "验证未通过：" + v.detail); return; }
         await api("/api/settings/secrets", { method: "POST", body: { secrets: { [src]: value } } });
+        let msg = "已保存并验证通过";
+        if (syncBox && syncBox.checked && !syncBox.disabled) {
+          result.textContent = "同步云端…";
+          try {
+            const sc = await api("/api/settings/sync-cloud", { method: "POST", body: { sources: [src] } });
+            const r = (sc.results || {})[src] || {};
+            msg += r.ok ? "，已同步云端 Secrets" : `；云端同步失败：${r.detail}`;
+          } catch (e) { msg += `；云端同步失败：${e.message}`; }
+        }
         input.value = "";
-        setResult(card, true, "已保存并验证通过");
+        setResult(card, true, msg);
         toast("凭证已更新", true);
         await load();
       } catch (e) { setResult(card, false, e.message); }
@@ -155,7 +174,7 @@ const PARAMS = [
   { path: ["max_songs"], label: "网易云歌曲数", type: "number" },
   { path: ["bilibili", "recent_days"], label: "B站时间窗口（天）", type: "number" },
   { path: ["bilibili", "max_videos"], label: "B站最多条数", type: "number" },
-  { path: ["bilibili", "feed_pages"], label: "B站翻页数", type: "number" },
+  { path: ["bilibili", "feed_pages"], label: "B站动态翻页数（每页上限约20条）", type: "number" },
   { path: ["wechat", "max_articles"], label: "公众号最多条数", type: "number" },
   { path: ["wechat", "mp_cutoff_hour"], label: "公众号窗口起点（时）", type: "number" },
 ];
@@ -257,6 +276,11 @@ async function load() {
   const d = await api("/api/settings");
   state.policy = d.policy || {};
   state.secrets = d.secrets || {};
+  try {
+    state.cloud = await api("/api/settings/cloud-status");
+  } catch (e) {
+    state.cloud = { available: false, detail: e.message };
+  }
   renderAuth();
   renderChips();
   renderParams();

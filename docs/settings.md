@@ -112,12 +112,28 @@
 不碰源码、不碰 `config.json`（本就 gitignore）。无变化则跳过提交；
 `GIT_TERMINAL_PROMPT=0` 避免凭证提示卡死；有超时保护；失败只返回错误不抛出。
 
-## 5. 并发控制
+## 5. 本地 → 云端 Cookie 同步（`gh secret set`）
+
+设置页每个登录卡片有「同步云端」勾选：保存并验证 Cookie 后，勾选则调用
+`daily_push/cloud_secrets.py`，通过本机 `gh secret set` 把值写入 GitHub Actions Secrets
+（`NETEASE_COOKIE` / `BILIBILI_SESSDATA`），本地 `config.json` 与云端一次到位。
+
+- **鉴权**：用本机 `gh`。已 `gh auth login` 则直接可用；否则可在 `config.json` 配 `github.token`（作为 `GH_TOKEN`）。
+- **预检**：`GET /api/settings/cloud-status` 返回 `{available, authed, repo, token_configured, detail}`；
+  不可用时勾选框自动禁用并提示原因。
+- **写入**：`POST /api/settings/sync-cloud {sources:[...]}`，服务端读取已保存的值再推；
+  Secret 经 **stdin** 传入（不出现在命令行参数里）。
+- **邮件兜底保留**：人不在电脑前时，云端 `cookie-repair` 回复邮件流程仍可用（见 [architecture.md](architecture.md)）。
+  两套写的是同一批 Secrets，不冲突。
+
+> GitHub Secrets 只写不可读，因此只能**本地 → 云端**单向同步；云端改完由本地 `start.py` 读回复邮件自愈。
+
+## 6. 并发控制
 
 `app.py` 用一个全局 `_heavy_lock` 串行化**采集**与**清理+发布**：二者都会写 SQLite、
 操作 `site/` 的 git 仓库，绝不能并发。第二个任务在第一个未结束时返回 `429`。
 
-## 6. 测试
+## 7. 测试
 
 零新依赖，使用标准库 `unittest`：
 
@@ -134,18 +150,21 @@ python -m unittest discover -s tests -t .
 | `tests/test_export_isolation.py` | 导出 HTML 不含设置入口 / token |
 | `tests/test_wechat_filter.py` | 公众号屏蔽仅匹配作者、标题不参与 |
 | `tests/test_git_publish.py` | 只提交 settings.json（其他脏文件不进 commit）、无变化跳过 |
+| `tests/test_cloud_secrets.py` | `gh secret set` 用 stdin 传值、token 走 `GH_TOKEN`、缺 repo/失败的错误处理 |
 
-## 7. 已知限制
+## 8. 已知限制
 
 - `push_time`、`port`、`netease.mode` 等由 `start.py` / `create_app` 启动时读取的项，
   改完需重启进程才生效；屏蔽名单 / Cookie 因每次采集重读，无需重启。
-- 网页更新的是**本地** `config.json`；云端 Cookie 仍在 GitHub Secrets，
-  二者不会自动同步（云端仍走「回复邮件自动更新」或手动改 Secrets）。
-- 设置页仅本机可用；PC 关机时无法访问。
+- 网页更新的是**本地** `config.json`；云端 Cookie 需勾选「同步云端」（本机 `gh` 已登录）才会同步，
+  否则云端仍走「回复邮件自动更新」或手动改 Secrets。
+- 设置页仅本机可用；PC 关机时无法访问（Cookie 靠邮件兜底，屏蔽名单等下次开机再改）。
 
 ## 变更记录
 
 - **2026-09-12**：新增配置分层（`settings.json` 跟踪 + `config.json` 密钥）、本地设置页 `/settings`
   与 `/api/settings*`（Host/Origin/CSRF 鉴权、密钥打码、原子写与备份）、
   屏蔽名单「保存并应用到全部推送」（purge 历史 + 重发 Pages + 推送 `settings.json` 到 `code`）、
-  公众号屏蔽改为仅匹配作者、`git_publish` 只提交 `settings.json`、导出隔离、23 项单元测试。
+  公众号屏蔽改为仅匹配作者、`git_publish` 只提交 `settings.json`、导出隔离、
+  **本地 → 云端 Cookie 同步（`cloud_secrets.py` + 设置页「同步云端」，邮件流程保留兜底）**、
+  「B站动态翻页数（每页上限约20条）」标签，共 31 项单元测试。

@@ -38,6 +38,9 @@
   - 旧的 `master` 分支已删除（废弃，勿重建）
 - 改前端后记得重新导出静态站让网页同步：`python -c "from daily_push.export_site import export_site, push_site; export_site(); push_site()"`
 - 提交前检查 `git status`，`config.json` / `data/` / `site/` 已被 gitignore，不应出现在改动里。
+- **每次 commit / push 前必须同步更新受影响的文档**（`README.md`、`AGENTS.md`、`docs/*`），
+  并在 `docs/status.md` 变更记录里登记日期；文档中写明**修改时间**。
+- 本地个人笔记（gitignored，给 AI 自己看）见 `AGENTS.local.md`，**若存在请先读**。
 
 ## 常用命令
 

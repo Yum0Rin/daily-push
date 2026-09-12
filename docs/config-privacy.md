@@ -15,7 +15,8 @@
 `settings.json` 中若出现密钥键会被忽略（防止策略文件夹带凭证）。
 本地设置页 `http://127.0.0.1:5000/settings` 可视化编辑上述两类文件：
 - 策略 → 写 `settings.json`（「保存并应用到全部推送」会清理历史/今天、重发 Pages 并推送到 `code`）；
-- Cookie → 写 `config.json`（仅本机；云端仍走 Secrets / 回复邮件链路）。
+- Cookie → 写 `config.json`（仅本机）；勾「同步云端」可经 `gh secret set` 写入云端 Secrets
+  （需本机 `gh` 已登录，或配置 `github.token`），否则走回复邮件 / 手动改 Secrets。
 
 ## 配置键参考
 
@@ -45,6 +46,7 @@
 | `site.repo` | GitHub 仓库 `<user>/<repo>` | Pages 发布目标 |
 | `site.branch` | Pages 分支 | 默认 `main` |
 | `site.export_dir` | 静态站导出目录 | 默认 `site` |
+| `github.token` | 本机 PAT（可选） | 本机未 `gh auth login` 时，用于 `gh secret set` 同步云端 Cookie（作为 `GH_TOKEN`） |
 
 > 凭证类字段（Cookie / SESSDATA / SMTP 授权码）只出现在本机 `config.json`，已被 `.gitignore` 排除。
 > 云端由 GitHub Actions 通过 Secrets 注入，见 `tools/make_cloud_config.py`。

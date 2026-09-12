@@ -125,6 +125,7 @@ SECRET_SPEC = {
         "imap_port": _int(1, 65535),
     },
     "site": {"repo": _str, "branch": _str, "export_dir": _str},
+    "github": {"token": _secret},
     "xiaohongshu": {"cookie": _secret, "limit": _int(1, 100)},
     "port": _int(1, 65535),
     "data_dir": _str,
@@ -299,6 +300,7 @@ def secrets_view(config_path=None):
     bilibili = cfg.get("bilibili") or {}
     email = cfg.get("email") or {}
     site = cfg.get("site") or {}
+    github = cfg.get("github") or {}
     cookie = netease.get("cookie") or ""
     sessdata = bilibili.get("sessdata") or ""
     return {
@@ -314,4 +316,5 @@ def secrets_view(config_path=None):
         },
         "email_configured": bool(email.get("smtp_user") and email.get("smtp_pass")),
         "site_repo": site.get("repo") or "",
+        "github_token_configured": bool(github.get("token")),
     }

@@ -104,6 +104,10 @@
 
 ## 失败通知与 Cookie 自动修复
 
+> **本地 → 云端 Cookie 同步（2026-09-12）**：本地设置页保存 Cookie 时可选勾「同步云端」，
+> 经 `daily_push/cloud_secrets.py` 调本机 `gh secret set` 直写云端 Secrets（主动快路径）。
+> 下面的「回复邮件自动更新」流程**保留为不在电脑前时的兜底**，两者写同一批 Secrets，不冲突。
+
 **邮件通知**（`tools/notify_email.py`）—— 所有失败统一走邮件，不再桌面弹窗：
 - SMTP 配置：本地读 `config.json.email` 段；云端读 Secrets `SMTP_HOST/SMTP_PORT/SMTP_USER/SMTP_PASS/MAIL_TO`。
 - 主题标明环节：`每日推送 · 本地采集失败 / 本地推送失败 / 云端采集失败 / 云端工作流提前失败`。

@@ -27,7 +27,7 @@
 | 双端同时触发 cookie-repair | 已知 | 本地与云端若同日同时 cookie 失效，可能双触发轮询（幂等，会重复回结果邮件） |
 | 云端同源 | 前提 | 要让 `settings.json` 在云端生效，`code` 分支必须是**含配置分层的新代码** |
 | 设置页 | 仅本机 | PC 关机时无法访问；`push_time` / `port` 等改完需重启进程才生效 |
-| 云端 Cookie | 未自动同步 | 网页更新的是本机 `config.json`；云端仍走「回复邮件」或手动改 Secrets |
+| 云端 Cookie | 可选同步 | 设置页勾「同步云端」→ `gh secret set`（需本机 `gh` 已登录）；否则走「回复邮件」或手动改 Secrets |
 
 > QQ 群消息与微信群消息采集已移除（2026-08-07，用户不再需要）。
 
@@ -80,6 +80,11 @@
     `git_publish.commit_and_push_settings()`（只提交 `settings.json` 推到 `code`）；
     `make_cloud_config.py` 改从 `settings.json` 读策略、删硬编码名单；`_heavy_lock` 串行化采集与发布；
     修复仪表盘日期选择器 `«`/`»` 跨年 bug；新增 23 项单元测试。
+22. 2026-09-12：本地 → 云端 Cookie 同步——新增 `daily_push/cloud_secrets.py`，设置页登录卡加「同步云端」
+    勾选，保存 Cookie 时经本机 `gh secret set` 写入云端 Secrets（值走 stdin）；
+    新增 `/api/settings/cloud-status`、`/api/settings/sync-cloud`；邮件 `cookie-repair` 流程**保留兜底**；
+    `config.json` 可选 `github.token`（无 gh 登录时用）；「B站翻页数」标签改为「B站动态翻页数（每页上限约20条）」；
+    测试增至 31 项。
 
 ## 待办（用户可选）
 

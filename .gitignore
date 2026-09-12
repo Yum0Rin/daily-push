@@ -32,3 +32,6 @@ Thumbs.db
 # ===== 开发工具脚本（可留本地，视需求）=====
 tools/xhs_console.txt
 tools/xhs_capture.txt
+
+# ===== AI 本地笔记（给助手自己看，不入库）=====
+AGENTS.local.md
