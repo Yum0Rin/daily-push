@@ -66,6 +66,10 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
 - `bilibili.reserve`：隐藏缓冲条数，默认 3（多取几条标 `hidden` 供回填，前端不显示）。
 - `bilibili.sessdata`：登录 Cookie（动态接口需 WBI 签名 + 登录态）。
 
+**封面回填 / 失效清理**：`python -m daily_push.cover_backfill [days] [interval]` 为历史补封面
+（网易云 `http→https`；B站逐条查 `x/web-interface/view`），并把返回 620xx / -404 / -403 的
+**失效 / 私密视频删除**；默认最近 7 天，`0`=全部，逐条 sleep 控频。
+
 ## ~~QQ群消息~~ / ~~微信群消息~~（已移除）
 
 2026-08-07 起已删除 `sources/qq.py`、`sources/wechat.py`，collector 不再采集，

@@ -193,16 +193,16 @@ button.stat .value { margin-top: 4px; }
 .articles a:hover { color: var(--accent-2); text-decoration: underline; }
 .articles .time { color: var(--muted); font-size: 12px; flex-shrink: 0; }
 
-/* B站视频：品字布局（首张大图横跨两列，其余两列网格） */
+/* B站视频：等高网格，窄屏 2 列、宽屏 3 列（最多 3、最少 2） */
 .videos {
   margin: 0; padding: 0; list-style: none;
   display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;
 }
+@media (min-width: 620px) { .videos { grid-template-columns: repeat(3, 1fr); } }
 .videos .vcard {
   display: flex; flex-direction: column; overflow: hidden;
   background: var(--card-2); border: 1px solid var(--border); border-radius: 10px;
 }
-.videos .vcard:first-child { grid-column: 1 / -1; }
 .videos .vthumb { display: block; background: var(--card); }
 .videos .vthumb img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
 .videos .vinfo { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; }
