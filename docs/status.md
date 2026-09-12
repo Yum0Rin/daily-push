@@ -85,6 +85,10 @@
     新增 `/api/settings/cloud-status`、`/api/settings/sync-cloud`；邮件 `cookie-repair` 流程**保留兜底**；
     `config.json` 可选 `github.token`（无 gh 登录时用）；「B站翻页数」标签改为「B站动态翻页数（每页上限约20条）」；
     测试增至 31 项。
+23. 2026-09-12：仓库整理——`AGENTS.md` 加入 `.gitignore` 并从索引移除（仅本机、不再公开）；
+    「忽略某博主/公众号」流程移入 [settings.md](settings.md)（含手动 CLI 步骤）；
+    `AGENTS.md` 顶部增补「常驻约定（务必遵守）」与「命令由 AI 后台静默执行」说明；
+    新增 gitignored 个人笔记 `AGENTS.local.md`。
 
 ## 待办（用户可选）
 

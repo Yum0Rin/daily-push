@@ -112,6 +112,18 @@
 不碰源码、不碰 `config.json`（本就 gitignore）。无变化则跳过提交；
 `GIT_TERMINAL_PROMPT=0` 避免凭证提示卡死；有超时保护；失败只返回错误不抛出。
 
+### 手动 CLI 流程（等价于设置页按钮）
+
+```bash
+# 1) 编辑 settings.json：bilibili.exclude / wechat.exclude_keywords
+# 2) 清历史 + 重发 Pages（加 --no-push 只清不发）
+python tools/purge_ignored.py
+# 3) 让云端生效：把 settings.json 推到 code
+git add settings.json && git commit -m "chore: 更新 settings.json" && git push origin HEAD:code
+```
+
+> 设置页「保存并应用到全部推送」会自动完成上面 3 步（并额外经 `git_publish` 提交推送）。
+
 ## 5. 本地 → 云端 Cookie 同步（`gh secret set`）
 
 设置页每个登录卡片有「同步云端」勾选：保存并验证 Cookie 后，勾选则调用
