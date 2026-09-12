@@ -38,7 +38,7 @@
 | `wechat.exclude_keywords` | 账号名命中即剔除 | **仅按 author/公众号名**子串匹配，不匹配标题（避免误伤） |
 | `wechat.notify_keywords` | 命中标记为「通知」类置底 | 默认覆盖取餐/优惠券/快递等 |
 | `wechat.important_biz` | 只保留这些公众号 | 默认空=不过滤 |
-| `wechat.max_articles` | 公众号最多条数 | 默认 10 |
+| `wechat.max_articles` | 公众号最多条数 | 默认 12 |
 | `wechat.mp_cutoff_hour` | 公众号窗口起始边界（时） | 默认 18：窗口 = 最近一次该时刻之后 ~ 当前时刻，配合跨天去重不重复推送 |
 | `email.smtp_host/port` | 本地发件 SMTP | 如 `smtp.qq.com:465`（授权码） |
 | `email.smtp_user/pass` | 发件邮箱 + SMTP 授权码 | QQ 邮箱授权码 SMTP/IMAP 通用 |

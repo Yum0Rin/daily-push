@@ -47,6 +47,9 @@ daily-push/
 │   ├── cloud_secrets.py         # 本地→云端 Cookie 同步（gh secret set）
 │   ├── publish_lock.py          # 跨进程发布锁（采集/清理/推送串行化）
 │   ├── run_status.py            # 记录上次采集/推送/检测时间
+│   ├── netease_history.py       # 历史日推评论/收藏过滤与计数回填（apply_history）
+│   ├── backfill.py              # 隐藏缓冲回填（promote_reserve）
+│   ├── cover_backfill.py        # 历史封面回填 + 失效清理 + 公众号补全（CLI）
 │   ├── storage.py               # SQLite 存储层（按日合并语义）
 │   ├── collector.py             # 聚合采集器（编排所有数据源）
 │   ├── app.py                   # Flask Web 应用 + 异步采集/清理 API + 设置页
@@ -79,7 +82,11 @@ daily-push/
 │   ├── test_cloud_secrets.py    # gh secret set 走 stdin / token
 │   ├── test_publish_lock.py     # 跨进程文件锁
 │   ├── test_purge_order.py      # 先合并远端再 purge
-│   └── test_bilibili_filter.py  # B站屏蔽子串/空串
+│   ├── test_bilibili_filter.py  # B站屏蔽子串/空串
+│   ├── test_netease_filter.py   # 日推评论/收藏过滤 + 隐藏缓冲
+│   ├── test_netease_history.py  # 历史回填/过滤
+│   ├── test_backfill.py         # 隐藏缓冲回填
+│   └── test_cover_backfill.py   # 封面回填 helpers
 ├── .github/workflows/daily-collect.yml  # 云端每日采集 + 发布 + 出错通知 workflow
 ├── .github/workflows/cookie-repair.yml  # 回复邮件自动更新 Cookie 的轮询 workflow
 └── docs/                        # 更细化的设计说明文档
@@ -100,6 +107,9 @@ daily-push/
 | `daily_push/cloud_secrets.py` | 本地 → 云端 Cookie 同步：本机 `gh secret set` 写 Secrets（值走 stdin） |
 | `daily_push/publish_lock.py` | 跨进程文件锁：采集/清理/推送/导出串行化，避免并发 git/SQLite 冲突 |
 | `daily_push/run_status.py` | 记录上次采集/推送/检测时间到 `<data_dir>/status.json` |
+| `daily_push/netease_history.py` | 历史日推按评论/收藏阈值过滤 + 补全计数（`apply_history`） |
+| `daily_push/backfill.py` | 隐藏缓冲回填：`promote_reserve()` 从 `hidden` 顺延补满 |
+| `daily_push/cover_backfill.py` | 历史封面回填 + 失效视频清理 + 公众号补全（CLI `python -m daily_push.cover_backfill`） |
 | `daily_push/storage.py` | SQLite 存储：按 `push_date` 一行，**按日合并**（采集失败不覆盖当天旧值） |
 | `daily_push/collector.py` | 聚合编排：按序采集各来源 → 跨天去重 → 写库；`push_date` 固定北京时间（UTC+8） |
 | `sources/netease.py` | 网易云日推 Top N（含 top1 热评）；`mode=api`（本地现用，NeteaseCloudMusicApi+Cookie）或 `ncm-cli`（官方接口备用，当前版本无 recommend 命令） |

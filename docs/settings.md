@@ -176,6 +176,8 @@ git add settings.json && git commit -m "chore: 更新 settings.json" && git push
 - **安全响应头**：所有响应加 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、
   `Referrer-Policy: no-referrer` 与一条 CSP（保留 `'unsafe-inline'` 以兼容现有内联事件处理）。
 - **界面引导**：不直观的字段旁有 ⓘ 圆圈，鼠标悬停显示说明（纯 CSS tooltip，无需 JS）。
+- **历史回填 CLI**：`python -m daily_push.cover_backfill [days] [interval]` —— 网易云封面 `https` 化、
+  B站补封面并删除失效/私密视频、公众号补封面并补到 `max_articles`；逐条 `sleep` 控频。
 
 ## 8. 测试
 
@@ -221,5 +223,8 @@ python -m unittest discover -s tests -t .
   历史条目经「保存参数」（右侧 ⓘ）**补全**这两个数并按 `max_comments` / `max_favorites` 过滤；
   仪表盘显示 ❤️/💬；测试增至 50 项。
 - **2026-09-12（四）**：网易云封面规范为 `https://`（修复被 CSP / 混内容拦截）；
-  B站动态采集封面（`archive.cover`）并改为**品字布局**；各源新增**隐藏缓冲** `reserve`（默认 3），
+  B站动态采集封面（`archive.cover`）；各源新增**隐藏缓冲** `reserve`（默认 3），
   被忽略 / 过滤后从缓冲**顺延补满**；`AGENTS.md` 增加「爬取必须控频」约定；测试增至 54 项。
+- **2026-09-12（五）**：展示细节——B站 3 列 / 公众号 2 列等高网格（公众号封面按微信 **2.35:1 完整显示**、
+  标题固定两行、无封面用 `.gthumb-ph` 占位且非正式推文保留）；`mmbiz` 防盗链用页面 `no-referrer` 解决；
+  公众号历史补到 **12/天**；测试 60 项。
