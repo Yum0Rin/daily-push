@@ -1,6 +1,6 @@
 {
   "push_time": "07:30",
-  "max_songs": 5,
+  "max_songs": 0,
   "bilibili": {
     "exclude": [
       "冷水先森无人声助眠",
@@ -22,7 +22,7 @@
       "辣个芝士"
     ],
     "recent_days": 1,
-    "max_videos": 12,
+    "max_videos": 0,
     "feed_pages": 2,
     "reserve": 3
   },
@@ -59,7 +59,7 @@
       "优惠券"
     ],
     "important_biz": [],
-    "max_articles": 12,
+    "max_articles": 0,
     "mp_cutoff_hour": 18,
     "reserve": 3
   },

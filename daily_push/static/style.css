@@ -104,7 +104,10 @@ button.stat .value { margin-top: 4px; }
   border-radius: 14px; padding: 18px 20px; margin-bottom: 18px;
 }
 .card h2 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
-.songs { margin: 0; padding: 0; list-style: none; counter-reset: song; }
+.songs {
+  margin: 0; padding: 0; list-style: none; counter-reset: song;
+  max-height: min(440px, 78vh); overflow-y: auto;  /* 内滚动：约显示前 5 首，且不超过一屏 */
+}
 .songs li {
   display: flex; align-items: center; gap: 12px;
   padding: 8px 6px; border-bottom: 1px dashed var(--border);

@@ -174,7 +174,8 @@ def backfill_wechat_history(storage, cfg, since_days=180, log=print):
             continue
         merged = list(existing) + extra
         merged.sort(key=lambda x: (x.get("notify", False), -x["timestamp"]))
-        merged = merged[:max_articles]
+        if max_articles:
+            merged = merged[:max_articles]
         if len(merged) > len(existing):
             filled += len(merged) - len(existing)
             storage.save(d, netease=row.get("netease"), bilibili=row.get("bilibili"),

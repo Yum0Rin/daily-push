@@ -93,6 +93,8 @@ main:
   页面 `<head>` 加 `<meta name="referrer" content="no-referrer">`（img 也带 `referrerpolicy="no-referrer"`），
   浏览器不发送 Referer → 微信返回真图（本地另有 `Referrer-Policy: no-referrer` 响应头，Pages 靠该 meta）。
 - 无封面条目（非正式推文 / 失效视频）显示**占位封面** `.gthumb-ph`（渐变底 + 📰/📺），保留在列表里不删除。
+- 网易云卡片：标题改「网易云日推」，并改为**内滚动卡片**（`.songs { max-height: min(440px, 78vh); overflow-y:auto }`，
+  约显示前 5 首、不超过一屏），配合 `max_songs=0` 不限数量。
 - B站封面取动态 `archive.cover`；公众号封面取 appmsg `thumburl` / `cover_16_9`（`mmbiz.qpic.cn`）。
 - 网易云封面 URL 规范为 `https://`（修复被 CSP / 混内容拦截）；前端也对旧数据兜底替换。
 - 三张卡片（音乐/B站/公众号）均过滤 `hidden` 隐藏缓冲项，summary 计数同样排除。

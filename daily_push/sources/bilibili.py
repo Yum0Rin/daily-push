@@ -109,7 +109,7 @@ class BiliCollector:
         cutoff = datetime.datetime.combine(
             datetime.date.today() - datetime.timedelta(days=self.recent_days),
             datetime.time.min).timestamp()
-        limit = self.max_videos + max(0, self.reserve)  # 多取几条作为隐藏缓冲
+        limit = (self.max_videos + max(0, self.reserve)) if self.max_videos else 0  # 0=不限
         entries, seen_bvid, offset = [], set(), ""
         for _ in range(self.feed_pages):
             params = {"type": "video"}
@@ -144,12 +144,12 @@ class BiliCollector:
                     "created": created,
                     "pic": cover,
                 })
-            if not data.get("has_more") or not items or len(entries) >= limit:
+            if not data.get("has_more") or not items or (limit and len(entries) >= limit):
                 break
             offset = data.get("offset")
         entries.sort(key=lambda e: e["created"], reverse=True)
-        entries = entries[:limit]
+        entries = entries[:limit] if limit else entries
         for i, e in enumerate(entries):
-            if i >= self.max_videos:
+            if self.max_videos and i >= self.max_videos:
                 e["hidden"] = True
         return entries

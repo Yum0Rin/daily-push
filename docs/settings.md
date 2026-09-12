@@ -42,6 +42,7 @@
   `netease.{max_comments,max_favorites,reserve}`、
   `bilibili.{exclude,recent_days,max_videos,feed_pages,reserve}`、
   `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour,reserve}`。
+- 数量上限 `max_songs` / `max_videos` / `max_articles` 为 **0 表示不限**（只影响之后采集，不改历史）。
 - 密钥：`netease.{mode,cookie,base_url}`、`bilibili.sessdata`、`email.*`、`site.*`、
   `xiaohongshu.*`、`port`、`data_dir`。
 
@@ -228,3 +229,6 @@ python -m unittest discover -s tests -t .
 - **2026-09-12（五）**：展示细节——B站 3 列 / 公众号 2 列等高网格（公众号封面按微信 **2.35:1 完整显示**、
   标题固定两行、无封面用 `.gthumb-ph` 占位且非正式推文保留）；`mmbiz` 防盗链用页面 `no-referrer` 解决；
   公众号历史补到 **12/天**；测试 60 项。
+- **2026-09-12（六）**：数量上限支持 **0=不限**（`max_songs` / `max_videos` / `max_articles`），
+  当前三源均设为不限（只影响之后采集，不改历史）；仪表盘「网易云日推 Top 5」改名「**网易云日推**」
+  并改为**内滚动卡片**（约显示前 5 首，不超过一屏）；`Storage.delete()` 便于清理误写日期。

@@ -178,11 +178,11 @@ class WeChatArticleCollector:
         if self.important_biz:
             unique = [a for a in unique
                       if any(k in a["title"] for k in self.important_biz)]
-        limit = self.max_articles + max(0, self.reserve)
-        unique = unique[:limit]
-        for i, a in enumerate(unique):
-            if i >= self.max_articles:
-                a["hidden"] = True
+        if self.max_articles:
+            unique = unique[: self.max_articles + max(0, self.reserve)]
+            for i, a in enumerate(unique):
+                if i >= self.max_articles:
+                    a["hidden"] = True
         return unique
 
     def cover_map(self, since_ts=0, per_table_limit=2000):

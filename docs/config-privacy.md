@@ -33,19 +33,19 @@
 | `bilibili.sessdata` | B站 Cookie 中 `SESSDATA` | 浏览器登录 B站后复制（动态接口需登录态 + WBI 签名） |
 | `bilibili.exclude` | 按 UP 名**子串**排除的动态 | 存于 `settings.json`（跟踪入库） |
 | `bilibili.recent_days` | 时间窗口天数 | 默认 1 |
-| `bilibili.max_videos` | 最多条数 | 默认 10 |
+| `bilibili.max_videos` | 最多条数 | 默认 10；`0`=不限 |
 | `bilibili.feed_pages` | 动态接口最多翻页数 | 默认 2 |
 | `wechat.exclude_keywords` | 账号名命中即剔除 | **仅按 author/公众号名**子串匹配，不匹配标题（避免误伤） |
 | `wechat.notify_keywords` | 命中标记为「通知」类置底 | 默认覆盖取餐/优惠券/快递等 |
 | `wechat.important_biz` | 只保留这些公众号 | 默认空=不过滤 |
-| `wechat.max_articles` | 公众号最多条数 | 默认 12 |
+| `wechat.max_articles` | 公众号最多条数 | 默认 12；`0`=不限 |
 | `wechat.mp_cutoff_hour` | 公众号窗口起始边界（时） | 默认 18：窗口 = 最近一次该时刻之后 ~ 当前时刻，配合跨天去重不重复推送 |
 | `email.smtp_host/port` | 本地发件 SMTP | 如 `smtp.qq.com:465`（授权码） |
 | `email.smtp_user/pass` | 发件邮箱 + SMTP 授权码 | QQ 邮箱授权码 SMTP/IMAP 通用 |
 | `email.mail_to` | 收件邮箱 | 失败通知 / cookie 修复结果都发到这里 |
 | `email.imap_host/port` | IMAP 收信（可选，默认推导） | 默认 `smtp.`→`imap.`，端口 993 |
 | `push_time` | 本地每日定时采集时间 HH:MM | 默认 `07:30` |
-| `max_songs` | 网易云日推条数 | 默认 5 |
+| `max_songs` | 网易云日推条数 | 默认 5；`0`=不限 |
 | `port` | Flask 本地端口 | 默认 5000 |
 | `data_dir` | SQLite 数据目录 | 默认 `data` |
 | `site.repo` | GitHub 仓库 `<user>/<repo>` | Pages 发布目标 |

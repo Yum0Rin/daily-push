@@ -100,6 +100,11 @@ class Storage:
     def has(self, push_date):
         return self.get(push_date) is not None
 
+    def delete(self, push_date):
+        with self._lock:
+            self.conn.execute("DELETE FROM pushes WHERE push_date=?", (push_date,))
+            self.conn.commit()
+
     def pushed_urls(self, field, exclude_date=None):
         """Return set of urls already pushed for `field` in past days."""
         field = str(field)

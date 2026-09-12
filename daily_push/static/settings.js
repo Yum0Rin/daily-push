@@ -176,15 +176,15 @@ function renderChips() {
 // ------------------------------------------------------------------ params
 const PARAMS = [
   { path: ["push_time"], label: "每日采集时间 (HH:MM)", type: "time" },
-  { path: ["max_songs"], label: "网易云歌曲数", type: "number" },
+  { path: ["max_songs"], label: "网易云歌曲数（0=不限）", type: "number" },
   { path: ["netease", "max_comments"], label: "网易云最大评论数（超过则跳过，0=不限）", type: "number" },
   { path: ["netease", "max_favorites"], label: "网易云最大收藏数（超过则跳过，0=不限）", type: "number" },
   { path: ["netease", "reserve"], label: "网易云预留条数（隐藏缓冲）", type: "number" },
   { path: ["bilibili", "recent_days"], label: "B站时间窗口（天）", type: "number" },
-  { path: ["bilibili", "max_videos"], label: "B站最多条数", type: "number" },
+  { path: ["bilibili", "max_videos"], label: "B站最多条数（0=不限）", type: "number" },
   { path: ["bilibili", "feed_pages"], label: "B站动态翻页数（每页上限约20条）", type: "number" },
   { path: ["bilibili", "reserve"], label: "B站预留条数（隐藏缓冲）", type: "number" },
-  { path: ["wechat", "max_articles"], label: "公众号最多条数", type: "number" },
+  { path: ["wechat", "max_articles"], label: "公众号最多条数（0=不限）", type: "number" },
   { path: ["wechat", "mp_cutoff_hour"], label: "公众号窗口起点（时）", type: "number" },
   { path: ["wechat", "reserve"], label: "公众号预留条数（隐藏缓冲）", type: "number" },
 ];

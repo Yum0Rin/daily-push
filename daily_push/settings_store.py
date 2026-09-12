@@ -91,7 +91,7 @@ def _enum(options):
 # Editable policy -> written to settings.json (tracked, shared with cloud).
 POLICY_SPEC = {
     "push_time": _hhmm,
-    "max_songs": _int(1, 50),
+    "max_songs": _int(0, 500),
     "netease": {
         "max_comments": _int(0, 1000000000),
         "max_favorites": _int(0, 10000000000),
@@ -100,7 +100,7 @@ POLICY_SPEC = {
     "bilibili": {
         "exclude": _str_list,
         "recent_days": _int(1, 30),
-        "max_videos": _int(1, 100),
+        "max_videos": _int(0, 500),
         "feed_pages": _int(1, 10),
         "reserve": _int(0, 20),
     },
@@ -108,7 +108,7 @@ POLICY_SPEC = {
         "exclude_keywords": _str_list,
         "notify_keywords": _str_list,
         "important_biz": _str_list,
-        "max_articles": _int(1, 100),
+        "max_articles": _int(0, 500),
         "mp_cutoff_hour": _int(0, 23),
         "reserve": _int(0, 20),
     },

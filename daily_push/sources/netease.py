@@ -91,9 +91,10 @@ class _NeteaseHttp:
         data = self._get("/recommend/songs")
         songs = (data.get("data") or {}).get("dailySongs") or []
         out = []
-        limit = self.max_songs + max(0, self.reserve)  # 多取几首作为隐藏缓冲
+        reserve = max(0, self.reserve) if self.max_songs else 0
+        limit = (self.max_songs + reserve) if self.max_songs else 0  # 0=不限
         for s in songs:
-            if len(out) >= limit:
+            if limit and len(out) >= limit:
                 break
             total, hot = self._comment_info(s.get("id"))
             if self.request_interval:
@@ -124,7 +125,7 @@ class _NeteaseHttp:
                 "favorite_count": fav,
             })
         for i, item in enumerate(out):
-            if i >= self.max_songs:
+            if self.max_songs and i >= self.max_songs:
                 item["hidden"] = True
         return out
 
@@ -195,9 +196,10 @@ class _NeteaseNcmCli:
         if not songs:
             raise NeteaseError("ncm-cli returned no daily songs")
         out = []
-        limit = self.max_songs + max(0, self.reserve)
+        reserve = max(0, self.reserve) if self.max_songs else 0
+        limit = (self.max_songs + reserve) if self.max_songs else 0  # 0=不限
         for s in songs:
-            if len(out) >= limit:
+            if limit and len(out) >= limit:
                 break
             total, hot = self._comment_info(s.get("id"))
             if self.max_comments and total is not None and total > self.max_comments:
@@ -219,7 +221,7 @@ class _NeteaseNcmCli:
                 "favorite_count": None,
             })
         for i, item in enumerate(out):
-            if i >= self.max_songs:
+            if self.max_songs and i >= self.max_songs:
                 item["hidden"] = True
         return out
 
