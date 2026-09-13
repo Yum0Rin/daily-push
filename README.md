@@ -132,6 +132,7 @@ daily-push/
 各模块的详细设计、数据源输出结构、前端实现细节、配置键参考与隐私处置，分别见
 [docs/architecture.md](docs/architecture.md)、[docs/sources/README.md](docs/sources/README.md)、
 [docs/frontend.md](docs/frontend.md)、[docs/settings.md](docs/settings.md)、[docs/config-privacy.md](docs/config-privacy.md)。
+完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
 
 ---
 
@@ -202,9 +203,9 @@ python start.py                    # 一键启动（或 python start.py --no-col
 - ✅ 本地 → 云端 Cookie 同步：设置页勾「同步云端」经 `gh secret set` 直写云端 Secrets；邮件 `cookie-repair` 流程保留兜底。
 - ✅ 屏蔽词全量生效：保存后清理历史与今天、重发 Pages，并把 `settings.json` 推到 `code` 供云端采集同源过滤。
 - ✅ 配置分层：`settings.json`（非密钥策略，跟踪入库）与 `config.json`（密钥，gitignore），本地/云端同源。
-- ✅ 静默启动：首次采集并成功推送后才自动打开本地网页；采集/清理/推送用跨进程文件锁串行化。
+- ✅ 静默启动：自启 `pythonw`（无控制台、单实例）；首次采集并成功推送后才自动打开本地网页；采集/清理/推送用跨进程文件锁串行化。
 - ✅ 设置页：运行状态、配置备份/还原、安全响应头、ⓘ 悬停引导。
-- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 44 项）。
+- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 60 项）。
 - ⛔ 小红书已暂停（接口被风控 `300011`，签名已摸清但账号被标记，见 `docs/sources/README.md`）。
 - 网易云只提供官网歌曲页链接（`orpheus://` 客户端协议本机无法唤起）。
 - 公众号采集依赖本机微信解密环境，云端不采集 mp（但本地 mp 会在推送时随站点合并保留）。

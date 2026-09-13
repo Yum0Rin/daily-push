@@ -22,7 +22,7 @@
 | [sources/README.md](sources/README.md) | 数据源契约：每个采集器的输出结构、过滤配置、依赖前置 |
 | [frontend.md](frontend.md) | 前端实现：页面结构、渲染逻辑、双数据源（本地 API / 内联 `__DAYS__`）、样式约定与变更记录 |
 | [config-privacy.md](config-privacy.md) | 配置键参考 + 敏感信息处置（Cookie / 解密密钥 / 库文件），**改配置前必读** |
-| [status.md](status.md) | 当前可用能力、已知问题、变更记录、待办 |
+| [status.md](status.md) | 当前可用能力、已知问题、待办（完整历史见 [CHANGELOG.md](../CHANGELOG.md)） |
 
 ## 推荐阅读顺序
 
