@@ -13,6 +13,7 @@
 - 清理 09-13 已重复的公众号条目并重发 Pages。
 - **子进程不再弹控制台窗口**：新增 `daily_push/proc.py`（`run`/`popen` 统一在 Windows 加
   `CREATE_NO_WINDOW`），`git` / `gh` / `ncm-cli` 调用全部改走它；`pythonw` 与跑测试时不再闪窗。
+- `start_hidden.vbs`（本机绝对路径启动器）移出版本库并加入 `.gitignore`（保留本地文件）。
 
 ### 测试
 - 新增 `tests/test_crossday_dedup.py`（微信 `_assemble` 去重 + B站 `collect` 去重），共 65 项。
