@@ -31,6 +31,7 @@ NODE_SERVER_JS = os.path.join(PROJECT_DIR, "netease_server.js")
 COLLECT_RETRY_INTERVAL = 300  # 采集失败后耐心重试间隔（秒）
 PUSH_RETRY_INTERVAL = 60      # 推送失败后后台重试间隔（秒）
 HEAVY_LOCK_TIMEOUT = 900      # 跨进程发布锁最长等待（秒）
+FAIL_REPORT_THRESHOLD = 2     # 连续失败达到该次数才发失败邮件（避免一次性抖动误报）
 
 # Set once the first collect cycle has been exported AND pushed successfully.
 _first_push_event = threading.Event()
@@ -151,6 +152,7 @@ def run_collect(stop_at=None):
     """
     print(f"[collect] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} starting...")
     reported = False
+    fails = 0
     while True:
         errs = None
         try:
@@ -171,8 +173,10 @@ def run_collect(stop_at=None):
             errs = {"collect": str(e)}
 
         if errs:
-            print(f"[collect] errors: {errs}")
-            if not reported:
+            fails += 1
+            print(f"[collect] errors (第 {fails} 次): {errs}")
+            # 首次抖动（如瞬时读超时）不发邮件，连续失败达阈值才报
+            if fails >= FAIL_REPORT_THRESHOLD and not reported:
                 _report_errors(errs)
                 reported = True
             _try_apply_reply_cookie(errs)
@@ -290,9 +294,28 @@ def open_dashboard(host, port, wait_event=None):
     threading.Thread(target=_wait, daemon=True).start()
 
 
+def _ensure_streams():
+    """Under pythonw.exe there is no console (stdout/stderr are None); attach log files."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    try:
+        f = open(os.path.join(PROJECT_DIR, "start_out.log"), "a",
+                 encoding="utf-8", buffering=1)
+    except Exception:
+        return
+    if sys.stdout is None:
+        sys.stdout = f
+    if sys.stderr is None:
+        sys.stderr = f
+
+
 def main():
-    sys.stdout.reconfigure(line_buffering=True)
-    sys.stderr.reconfigure(line_buffering=True)
+    _ensure_streams()
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(line_buffering=True)
+        except Exception:
+            pass
     do_collect = "--no-collect" not in sys.argv
     ensure_netease_api()
     if do_collect:
