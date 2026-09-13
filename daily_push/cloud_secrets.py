@@ -12,7 +12,8 @@ appears in the process command line.
 """
 import os
 import shutil
-import subprocess
+
+from . import proc
 
 SECRET_NAMES = {"netease": "NETEASE_COOKIE", "bilibili": "BILIBILI_SESSDATA"}
 
@@ -21,7 +22,7 @@ def _run(args, timeout=60, env=None, input=None):
     e = dict(os.environ)
     if env:
         e.update(env)
-    return subprocess.run(
+    return proc.run(
         args, capture_output=True, text=True, encoding="utf-8",
         errors="replace", timeout=timeout, env=e, input=input,
     )

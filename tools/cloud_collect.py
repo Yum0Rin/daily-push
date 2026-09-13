@@ -9,12 +9,12 @@
 import json
 import os
 import re
-import subprocess
 import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
+from daily_push import proc  # noqa: E402
 from daily_push.collector import collect_once  # noqa: E402
 from daily_push.config import load_config  # noqa: E402
 from daily_push.export_site import export_site  # noqa: E402
@@ -24,11 +24,11 @@ from daily_push.storage import Storage  # noqa: E402
 def _published_days():
     """Return {push_date: {netease, bilibili, mp}} from origin/main index.html, or {}."""
     try:
-        subprocess.run(
+        proc.run(
             ["git", "fetch", "-q", "origin", "main"],
             capture_output=True, timeout=60,
         )
-        out = subprocess.run(
+        out = proc.run(
             ["git", "show", "origin/main:index.html"],
             capture_output=True, text=True, timeout=60,
             encoding="utf-8", errors="replace",

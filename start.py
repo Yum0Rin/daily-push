@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from daily_push import run_status
+from daily_push import proc, run_status
 from daily_push.config import load_config
 from daily_push.collector import collect_once
 from daily_push.publish_lock import LockBusy, heavy_lock
@@ -130,12 +130,11 @@ def ensure_netease_api():
         print(f"[start] NeteaseCloudMusicApi already on {host}:{port}")
         return
     print(f"[start] starting NeteaseCloudMusicApi on {host}:{port} ...")
-    subprocess.Popen(
+    proc.popen(
         ["node", NODE_SERVER_JS],
         cwd=PROJECT_DIR,
         stdout=open(os.path.join(PROJECT_DIR, "netease.out.log"), "w"),
         stderr=subprocess.STDOUT,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
     )
     for _ in range(30):
         if _port_open(host, port):

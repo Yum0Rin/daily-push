@@ -103,9 +103,10 @@ class BiliCollector:
             return data
         raise last or BiliError("request failed")
 
-    def collect(self):
+    def collect(self, exclude_urls=None):
         if not self.sessdata:
             raise BiliError("bilibili sessdata not configured")
+        exclude_urls = exclude_urls or set()
         cutoff = datetime.datetime.combine(
             datetime.date.today() - datetime.timedelta(days=self.recent_days),
             datetime.time.min).timestamp()
@@ -131,15 +132,18 @@ class BiliCollector:
                 created = int(author.get("pub_ts") or 0)
                 if not bvid or self._is_excluded(name) or bvid in seen_bvid:
                     continue
+                seen_bvid.add(bvid)
                 if created < cutoff:
                     continue
-                seen_bvid.add(bvid)
+                url = f"https://www.bilibili.com/video/{bvid}"
+                if url in exclude_urls:
+                    continue
                 cover = archive.get("cover") or ""
                 if cover.startswith("http://"):
                     cover = "https://" + cover[len("http://"):]
                 entries.append({
                     "title": archive.get("title", ""),
-                    "url": f"https://www.bilibili.com/video/{bvid}",
+                    "url": url,
                     "author": name,
                     "created": created,
                     "pic": cover,

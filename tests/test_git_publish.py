@@ -1,16 +1,16 @@
 """git_publish must commit ONLY settings.json (never other files) and push."""
 import json
 import os
-import subprocess
 import tempfile
 import unittest
 
+from daily_push import proc
 from daily_push.git_publish import commit_and_push_settings
 
 
 def git(args, cwd):
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True,
-                          text=True, encoding="utf-8", errors="replace")
+    return proc.run(["git", *args], cwd=cwd, capture_output=True,
+                    text=True, encoding="utf-8", errors="replace")
 
 
 class GitPublishTest(unittest.TestCase):
@@ -26,7 +26,7 @@ class GitPublishTest(unittest.TestCase):
         self._write("foo.txt", "a")
         git(["add", "-A"], self.repo)
         git(["commit", "-m", "init"], self.repo)
-        subprocess.run(["git", "init", "--bare", self.remote], capture_output=True)
+        proc.run(["git", "init", "--bare", self.remote], capture_output=True)
         git(["remote", "add", "origin", self.remote], self.repo)
         git(["push", "-u", "origin", "main"], self.repo)
 
@@ -41,12 +41,12 @@ class GitPublishTest(unittest.TestCase):
         self.assertTrue(res["committed"])
         self.assertTrue(res["pushed"])
 
-        remote_settings = subprocess.run(
+        remote_settings = proc.run(
             ["git", "--git-dir", self.remote, "show", "main:settings.json"],
             capture_output=True, text=True, encoding="utf-8")
         self.assertIn('"max_songs": 9', remote_settings.stdout)
 
-        remote_foo = subprocess.run(
+        remote_foo = proc.run(
             ["git", "--git-dir", self.remote, "show", "main:foo.txt"],
             capture_output=True, text=True, encoding="utf-8")
         self.assertEqual(remote_foo.stdout.strip(), "a")  # not committed

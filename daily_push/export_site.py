@@ -6,8 +6,8 @@
 import json
 import os
 import re
-import subprocess
 
+from . import proc
 from .config import load_config
 from .storage import Storage
 
@@ -31,11 +31,11 @@ def _published_days_from_remote(cfg):
         return {}
     try:
         remote = f"https://github.com/{repo}.git"
-        subprocess.run(["git", "fetch", "-q", "origin", "main"],
-                       cwd=PROJECT_DIR, capture_output=True, timeout=60)
-        out = subprocess.run(["git", "show", f"origin/{branch}:index.html"],
-                             cwd=PROJECT_DIR, capture_output=True, text=True,
-                             encoding="utf-8", errors="replace", timeout=60)
+        proc.run(["git", "fetch", "-q", "origin", "main"],
+                 cwd=PROJECT_DIR, capture_output=True, timeout=60)
+        out = proc.run(["git", "show", f"origin/{branch}:index.html"],
+                       cwd=PROJECT_DIR, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=60)
         if out.returncode != 0:
             return {}
         m = re.search(r"window\.__DAYS__\s*=\s*(\{.*?\})\s*;\s*</script>",
@@ -133,8 +133,8 @@ def push_site(config_path=None):
     remote = f"https://github.com/{repo}.git"
 
     def run(args, ok_fail=False):
-        r = subprocess.run(args, cwd=site, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace")
+        r = proc.run(args, cwd=site, capture_output=True, text=True,
+                     encoding="utf-8", errors="replace")
         if r.returncode != 0 and not ok_fail:
             raise RuntimeError(f"{' '.join(args)} -> {r.stderr[:200]}")
         return r

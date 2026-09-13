@@ -13,13 +13,13 @@
     RUN_URL            运行链接
 """
 import os
-import subprocess
 import sys
 import time
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
+from daily_push import proc  # noqa: E402
 from tools.cookie_reply import imap_find_reply, extract_cookies, test_cookie  # noqa: E402
 from tools.notify_email import send_email  # noqa: E402
 
@@ -30,7 +30,7 @@ SECRET_NAMES = {"netease": "NETEASE_COOKIE", "bilibili": "BILIBILI_SESSDATA"}
 
 def _gh_secret_set(name, value):
     # Value is passed via stdin so it never appears in the process command line.
-    r = subprocess.run(
+    r = proc.run(
         ["gh", "secret", "set", name, "--repo", REPO],
         input=value, capture_output=True, text=True, timeout=60,
     )

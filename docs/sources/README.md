@@ -99,7 +99,8 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 
 **时间窗口**（config `wechat.mp_cutoff_hour`，默认 18）：窗口 = 最近一次「当天 18:00」之后 ~ 当前时刻。
 即起始边界为 18:00（晚上采 → 前一天 18:00 起；早上采 → 前天 18:00 起），结束为当前时刻，
-保证当天更晚的新文章也会被采到；重复推送由 collector 的跨天去重（cutoffs.json）兜底。
+保证当天更晚的新文章也会被采到；重复推送由 collector 的**跨天去重**兜底：
+采集时按历史已推 URL（`storage.pushed_urls`）过滤，一条只推一次（cutoffs.json 仅作时间兜底）。
 
 过滤与分类（策略存于跟踪文件 `settings.json`，键 `wechat.exclude_keywords` / `notify_keywords`，均有默认值）：
 - `exclude_keywords`：**仅按 `author`（公众号名）子串匹配**排除，**不匹配标题**（避免误伤正常推文）。

@@ -52,7 +52,7 @@ class WeChatArticleCollector:
 
         起始 = 最近已结束那天 18:00:01（如晚上采 → 前一天 18:00:01；早上采 → 前天 18:00:01），
         结束 = 现在（当天更晚的新文章也会被采进来）。
-        重复推送由 collector 的跨天去重（cutoffs.json）兜底。
+        重复推送由 collector 的跨天去重（按历史已推 URL 过滤）兜底。
         """
         tz = datetime.timezone(datetime.timedelta(hours=8))
         now = datetime.datetime.now(tz)
@@ -158,16 +158,12 @@ class WeChatArticleCollector:
             pass
         return articles
 
-    def collect(self):
-        from wechat_cli_mcp.core.messages import decompress_content
-        ctx = self._ctx()
-        import glob
-        # 动态发现全部公众号库（biz_message_*.db），避免新库出现后漏采
-        dbs = sorted(glob.glob(os.path.join(ctx.db_dir, "message", "biz_message_*.db")))
-        articles = []
-        for path in dbs:
-            rel = "message/" + os.path.basename(path)
-            articles += self._collect_from_one_db(decompress_content, rel)
+    def _assemble(self, articles, exclude_urls=None):
+        """Dedupe, drop already-pushed urls, then apply important/max/reserve.
+
+        ``exclude_urls`` are urls pushed on previous days; filtering them here
+        (before the max/reserve slice) keeps the reserve buffer meaningful.
+        """
         # dedupe by url; content first, notifications below, both by time desc
         seen, unique = set(), []
         for a in sorted(articles, key=lambda x: (x.get("notify", False), -x["timestamp"])):
@@ -175,6 +171,8 @@ class WeChatArticleCollector:
                 continue
             seen.add(a["url"])
             unique.append(a)
+        if exclude_urls:
+            unique = [a for a in unique if a["url"] not in exclude_urls]
         if self.important_biz:
             unique = [a for a in unique
                       if any(k in a["title"] for k in self.important_biz)]
@@ -184,6 +182,18 @@ class WeChatArticleCollector:
                 if i >= self.max_articles:
                     a["hidden"] = True
         return unique
+
+    def collect(self, exclude_urls=None):
+        from wechat_cli_mcp.core.messages import decompress_content
+        ctx = self._ctx()
+        import glob
+        # 动态发现全部公众号库（biz_message_*.db），避免新库出现后漏采
+        dbs = sorted(glob.glob(os.path.join(ctx.db_dir, "message", "biz_message_*.db")))
+        articles = []
+        for path in dbs:
+            rel = "message/" + os.path.basename(path)
+            articles += self._collect_from_one_db(decompress_content, rel)
+        return self._assemble(articles, exclude_urls)
 
     def cover_map(self, since_ts=0, per_table_limit=2000):
         """Return {article_url: cover_url} scanned from local WeChat DBs.

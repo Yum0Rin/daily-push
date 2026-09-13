@@ -106,6 +106,7 @@ daily-push/
 | `daily_push/git_publish.py` | 只提交并推送 `settings.json` 到 `code` 分支（设置页用） |
 | `daily_push/cloud_secrets.py` | 本地 → 云端 Cookie 同步：本机 `gh secret set` 写 Secrets（值走 stdin） |
 | `daily_push/publish_lock.py` | 跨进程文件锁：采集/清理/推送/导出串行化，避免并发 git/SQLite 冲突 |
+| `daily_push/proc.py` | 子进程封装：Windows 下统一加 `CREATE_NO_WINDOW`，`git`/`gh`/`ncm-cli` 不再弹控制台窗口 |
 | `daily_push/run_status.py` | 记录上次采集/推送/检测时间到 `<data_dir>/status.json` |
 | `daily_push/netease_history.py` | 历史日推按评论/收藏阈值过滤 + 补全计数（`apply_history`） |
 | `daily_push/backfill.py` | 隐藏缓冲回填：`promote_reserve()` 从 `hidden` 顺延补满 |
@@ -146,7 +147,7 @@ collect_once() ──┬─ sources/netease.py        （需要本地 :3000 Node
                  ├─ sources/bilibili.py       （需要 SESSDATA + WBI 签名）
                  └─ sources/wechat_article.py （仅本地，需要微信解密环境 zstandard）
         │
-        ├─ 跨天去重（cutoffs.json，只推新内容）
+        ├─ 跨天去重（按历史已推 URL 过滤；cutoffs.json 仅作时间兜底）
         │
         ▼
 storage.save(push_date, ...)  ──►  data/daily.db（按日合并，失败不覆盖旧值）

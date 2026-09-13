@@ -19,6 +19,8 @@ import time
 
 import requests
 
+from .. import proc
+
 DEFAULT_REQUEST_INTERVAL = 0.3  # seconds between netease API calls (be gentle)
 
 
@@ -146,7 +148,7 @@ class _NeteaseNcmCli:
     def _cli(self, *args):
         """Run ncm-cli and parse its JSON output."""
         try:
-            r = subprocess.run(
+            r = proc.run(
                 [self.CMD, *args],
                 capture_output=True, text=True, encoding="utf-8",
                 errors="replace", shell=True, timeout=60,

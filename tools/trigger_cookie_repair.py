@@ -8,12 +8,12 @@ ref 规则与报错邮件主题保持一致：ref={push_date}-{'-'.join(sources)
 """
 import json
 import os
-import subprocess
 import sys
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, BASE_DIR)
 
+from daily_push import proc  # noqa: E402
 from tools.cookie_reply import is_cookie_error  # noqa: E402
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "").strip() or "Yum0Rin/daily-push"
@@ -45,7 +45,7 @@ def trigger(sources, push_date=None, timeout_min=360):
         "--repo", REPO,
     ]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        r = proc.run(cmd, capture_output=True, text=True, timeout=60)
         if r.returncode == 0:
             print(f"[cookie-repair] 已触发云端轮询 sources={sources} ref={ref}")
             return ref

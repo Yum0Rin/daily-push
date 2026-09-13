@@ -64,9 +64,12 @@
    - 网易云 → `sources/netease.py`
    - B站 → `sources/bilibili.py`
    - 公众号 → `sources/wechat_article.py`（需本地解密环境，`wechat_available()` 检测）
-3. **跨天去重**（cutoffs.json）：只保留时间戳 > 历史最大 cutoff 的新内容
-   （bilibili 按 `created`，mp 按 `timestamp`），保证一条内容只推一次。
-4. `storage.save(today, netease=..., bilibili=..., mp=...)` 写库。
+3. **跨天去重（主）**：采集前从 DB 取历史已推 URL（`pushed_urls(field, exclude_date=today)`），
+   传给采集器 `collect(exclude_urls=...)`，在套用 `max/reserve` **之前**过滤，
+   保证 bilibili / mp 的每条内容只推一次，且与「采集时刻 / 行是否被回填」无关。
+4. **跨天去重（兜底）**：`cutoffs.json` 只保留时间戳 > 历史最大 cutoff 的内容
+   （bilibili 按 `created`，mp 按 `timestamp`），防 URL 不稳定时重复。
+5. `storage.save(today, netease=..., bilibili=..., mp=...)` 写库。
 
 ## 存储层（storage.py）—— 按日合并语义
 
@@ -76,13 +79,19 @@
 时，**保留数据库里当天的旧值**，避免「某来源失败 → 把当天该来源清空/覆盖成错误」。
 
 数据库旧结构升级：无 `mp` 列时自动 `ALTER TABLE pushes ADD COLUMN mp`。
-跨天去重辅助：`pushed_urls(field)` 返回某字段历史上已推过的 URL 集合。
+跨天去重：`pushed_urls(field, exclude_date)` 返回某字段历史上已推过的 URL 集合（主去重依据）。
 
-## 跨天去重（cutoffs.json）
+## 跨天去重
 
+**主机制（按 URL）**：采集时把历史已推 URL（`storage.pushed_urls(field, exclude_date=today)`）
+作为 `exclude_urls` 传给采集器，在 `max/reserve` 切片前过滤，一条内容只推一次。
+不依赖采集时刻，行被回填更新后依然准确（修复 09-13 公众号重复推送 09-12 内容）。
+
+**兜底（cutoffs.json）**：
 - 文件位于 `data/cutoffs.json`，键为日期、值为当天最后一次采集时间戳。
 - 每天采集时：`threshold = max(所有历史日期的 cutoff)`，过滤掉时间戳 <= threshold 的内容；
   再把当天写入 cutoff，并只保留最近 3 天，避免文件膨胀。
+- 仅当 URL 不稳定（同一内容 URL 变化）时才起作用。
 
 ## 采集执行方式
 
@@ -159,3 +168,5 @@
     并在重试时读邮箱回复自愈写回 `config.json`。
 - **静默运行**：自启改用 `pythonw.exe`（无控制台窗口）；无控制台时 `start.py` 自动把
   stdout/stderr 写到 `start_out.log`。仅保留**一个**自启（避免多实例抢 :3000 / 端口）。
+- **子进程不弹窗（2026-09-13）**：所有 `git` / `gh` / `ncm-cli` 子进程统一经
+  `daily_push/proc.py`（Windows 加 `CREATE_NO_WINDOW`），`pythonw` 与测试运行时不再闪控制台窗口。

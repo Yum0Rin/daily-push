@@ -68,8 +68,9 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
     # Bilibili
     if bilibili:
         from .sources.bilibili import BiliCollector, BiliError
+        pushed_bili = storage.pushed_urls("bilibili", exclude_date=today.isoformat())
         try:
-            result["bilibili"] = BiliCollector(cfg).collect()
+            result["bilibili"] = BiliCollector(cfg).collect(exclude_urls=pushed_bili)
         except BiliError as e:
             result["bilibili"] = {"error": str(e)}
 
@@ -78,7 +79,8 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
         if wechat_available():
             try:
                 from .sources.wechat_article import WeChatArticleCollector
-                result["mp"] = WeChatArticleCollector(cfg).collect()
+                pushed_mp = storage.pushed_urls("mp", exclude_date=today.isoformat())
+                result["mp"] = WeChatArticleCollector(cfg).collect(exclude_urls=pushed_mp)
             except Exception as e:
                 result["mp"] = {"error": str(e)}
         else:
@@ -86,7 +88,10 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
     else:
         result.pop("mp", None)
 
-    # 跨天去重：记录每天最后一次采集时间；次日只推「该时间之后」的新内容
+    # 跨天去重（主）：采集时按历史已推 URL 过滤（见上方 exclude_urls），
+    # 与采集时刻无关，行被回填更新后依然准确。
+    # 跨天去重（兜底）：cutoffs.json 记录每天最后一次采集时间，次日只推
+    # 「该时间之后」的内容，防 URL 不稳定时重复。
     cutoffs = _load_cutoffs(storage_dir)
     today_str = today.isoformat()
     past = [int(v) for k, v in cutoffs.items() if k < today_str]

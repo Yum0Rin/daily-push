@@ -3,6 +3,20 @@
 > 本项目无正式版本号，按日期记录重要变更，**最新在上**。
 > 更细的设计见 [docs/](docs/README.md)，当前能力与已知问题见 [docs/status.md](docs/status.md)。
 
+## 2026-09-13
+
+### 修复
+- **跨天去重改用 URL（主）**：公众号 / B站采集前按「历史已推 URL」过滤（`Storage.pushed_urls`
+  → `collect(exclude_urls=...)`），在 `max/reserve` 切片前生效，一条内容只推一次。
+  修复 09-13 公众号重复推送 09-12 的 9 篇推文——旧逻辑以「采集墙钟时间」为 cutoff，
+  行被回填更新后 cutoff 变陈旧而漏去重。`cutoffs.json` 降为时间兜底。
+- 清理 09-13 已重复的公众号条目并重发 Pages。
+- **子进程不再弹控制台窗口**：新增 `daily_push/proc.py`（`run`/`popen` 统一在 Windows 加
+  `CREATE_NO_WINDOW`），`git` / `gh` / `ncm-cli` 调用全部改走它；`pythonw` 与跑测试时不再闪窗。
+
+### 测试
+- 新增 `tests/test_crossday_dedup.py`（微信 `_assemble` 去重 + B站 `collect` 去重），共 65 项。
+
 ## 2026-09-12
 
 ### 新增
