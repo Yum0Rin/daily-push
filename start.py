@@ -248,7 +248,9 @@ def main():
     # 默认模式仍会在启动时采集一次并推送（手动 `python start.py` 时用）。
     serve_only = "--serve-only" in sys.argv
     do_collect = "--no-collect" not in sys.argv and not serve_only
-    pipeline.ensure_netease_api()
+    if not serve_only:
+        # 常驻/默认模式：会话期间保留网易云代理（按需网页模式改为懒加载）。
+        pipeline.ensure_netease_api()
     if do_collect:
         threading.Thread(target=run_collect, daemon=True).start()
     else:

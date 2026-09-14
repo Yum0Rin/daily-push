@@ -8,8 +8,9 @@
 ┌─ 本地链路（无常驻）────────────────────────────────────────┐
 │  登录时：tools/run_daily.py 一次性 collect → export → push  │
 │          （跑完退出，关掉自己拉起的 :3000 代理）             │
-│  按需：start.py --serve-only 起 Flask @5000 + :3000 代理     │
-│        设置页「停止本地服务」→ 代理一并关闭                  │
+│  按需：start.py --serve-only 只起 Flask @5000                  │
+│        网易云代理**懒加载**：点检测/手动推送时才起，用完关   │
+│        设置页「停止本地服务」→ Flask 关闭                    │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─ 云端链路（GitHub Actions）────────────────────────────────┐
@@ -162,18 +163,20 @@
 
 **按需网页**：开始菜单「每日推送」→ `tools/open_dashboard.py`：
 探测 `:5000`，没起就 `pythonw start.py --serve-only`，端口就绪后再开浏览器。
+**网易云代理懒加载**：打开页面不启代理；点「检测网易云 / 手动推送 / 清理发布」时才起，用完即关。
 设置页「停止本地服务」→ `POST /api/settings/shutdown` → 关代理 + `os._exit(0)`。
 
 ## 共享流水线（pipeline.py）
 
-`daily_push/pipeline.py` 被登录任务 / 设置页「手动推送」/ `start.py` 共用：
-- `ensure_netease_api()`：按需拉起 `netease_server.js`（`:3000`），记住是不是自己拉起的。
-- `stop_netease_api()`：只关自己拉起的代理，避免误杀别人的。
+`daily_push/pipeline.py` 被登录任务 / 设置页「检测」「手动推送」「清理发布」/ `start.py` 共用：
+- **网易云代理懒加载（引用计数）**：`acquire()` 在网易云操作开始时按需拉起 `netease_server.js`（`:3000`）并 +1，
+  `release()` 结束时 -1、归零才关闭——**不点网易云相关操作就不会起代理**；并发操作共用同一个代理。
+- `ensure_netease_api()` / `stop_netease_api()`：常驻模式会话期间保留 / 服务关闭时强制关闭（只关本进程拉起的）。
 - `run_once()`：一次 `collect_once → export_site → push_site`；任一来源出错则**不发布**，返回 summary。
 
 ## start.py 说明
 
-- **`--serve-only`**：按需网页模式——只起 Flask + 网易云代理，**不采集、不定时**（供开始菜单入口用）。
+- **`--serve-only`**：按需网页模式——只起 Flask，**不采集、不定时**（网易云代理懒加载；供开始菜单入口用）。
 - 默认模式：启动时先采集一次并推送，再服务（手动 `python start.py` 时用）。
 - **静默启动**：不再一上来就弹浏览器；默认模式**首次采集并成功推送后**才自动打开本地网页
   （`_first_push_event`）。`--serve-only` 不自动开（由入口脚本开）。

@@ -241,8 +241,15 @@ def create_app(config_path=None, settings_path=None):
         cfg = _cfg()
         try:
             from tools.cookie_reply import test_cookie
+            from . import pipeline
             base = (cfg.get("netease") or {}).get("base_url") or "http://localhost:3000"
-            ok, detail = test_cookie(source, value, base)
+            if source == "netease":
+                pipeline.acquire()
+            try:
+                ok, detail = test_cookie(source, value, base)
+            finally:
+                if source == "netease":
+                    pipeline.release()
         except Exception as e:
             ok, detail = False, f"检测失败：{e}"
         run_status.record(f"last_check_{source}", detail)
@@ -258,24 +265,32 @@ def create_app(config_path=None, settings_path=None):
             from tools.cookie_reply import test_cookie
         except Exception as e:
             return jsonify({"error": f"检测模块不可用：{e}"}), 500
-        for source in sources:
-            if source == "netease":
-                value = (cfg.get("netease") or {}).get("cookie") or ""
-                base = (cfg.get("netease") or {}).get("base_url") or "http://localhost:3000"
-            elif source == "bilibili":
-                value = (cfg.get("bilibili") or {}).get("sessdata") or ""
-                base = ""
-            else:
-                continue
-            if not value:
-                results[source] = {"ok": False, "detail": "未配置"}
-                continue
-            try:
-                ok, detail = test_cookie(source, value, base)
-            except Exception as e:
-                ok, detail = False, f"检测失败：{e}"
-            results[source] = {"ok": bool(ok), "detail": detail}
-            run_status.record(f"last_check_{source}", detail)
+        need_proxy = "netease" in sources
+        from . import pipeline
+        if need_proxy:
+            pipeline.acquire()
+        try:
+            for source in sources:
+                if source == "netease":
+                    value = (cfg.get("netease") or {}).get("cookie") or ""
+                    base = (cfg.get("netease") or {}).get("base_url") or "http://localhost:3000"
+                elif source == "bilibili":
+                    value = (cfg.get("bilibili") or {}).get("sessdata") or ""
+                    base = ""
+                else:
+                    continue
+                if not value:
+                    results[source] = {"ok": False, "detail": "未配置"}
+                    continue
+                try:
+                    ok, detail = test_cookie(source, value, base)
+                except Exception as e:
+                    ok, detail = False, f"检测失败：{e}"
+                results[source] = {"ok": bool(ok), "detail": detail}
+                run_status.record(f"last_check_{source}", detail)
+        finally:
+            if need_proxy:
+                pipeline.release()
         return jsonify({"results": results})
 
     # -- local -> cloud credential sync (gh secret set) ----------------------
@@ -350,7 +365,12 @@ def create_app(config_path=None, settings_path=None):
         try:
             from tools.purge_ignored import purge_and_publish
             from .git_publish import commit_and_push_settings
-            result = purge_and_publish()
+            from . import pipeline
+            pipeline.acquire()
+            try:
+                result = purge_and_publish()
+            finally:
+                pipeline.release()
             result["settings_publish"] = commit_and_push_settings(PROJECT_DIR)
             run_status.record("last_publish")
             with _purge_lock:
@@ -401,8 +421,11 @@ def create_app(config_path=None, settings_path=None):
                 error=None)
         try:
             from . import pipeline
-            pipeline.ensure_netease_api()
-            summary = pipeline.run_once()
+            pipeline.acquire()
+            try:
+                summary = pipeline.run_once()
+            finally:
+                pipeline.release()
             errs = summary.get("errors") or {}
             if errs:
                 try:

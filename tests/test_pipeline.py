@@ -48,5 +48,34 @@ class RunOnceTest(unittest.TestCase):
         self.assertEqual([c.args[0] for c in rec.call_args_list], ["last_collect"])
 
 
+class ProxyRefcountTest(unittest.TestCase):
+    def tearDown(self):
+        pipeline.stop_netease_api()
+
+    def test_starts_once_and_stops_at_zero(self):
+        killed, spawned = [], []
+
+        class _FakeP:
+            def poll(self):
+                return None
+
+            def terminate(self):
+                killed.append(True)
+
+        def fake_popen(*a, **k):
+            spawned.append(1)
+            return _FakeP()
+
+        with mock.patch.object(pipeline, "_port_open", return_value=False), \
+                mock.patch.object(pipeline.proc, "popen", side_effect=fake_popen):
+            pipeline.acquire(wait=0)
+            pipeline.acquire(wait=0)
+            self.assertEqual(len(spawned), 1)   # shared, not double-spawned
+            pipeline.release()
+            self.assertEqual(killed, [])        # still in use
+            pipeline.release()
+            self.assertEqual(killed, [True])    # stopped at ref 0
+
+
 if __name__ == "__main__":
     unittest.main()

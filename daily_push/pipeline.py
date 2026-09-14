@@ -1,13 +1,21 @@
 """Daily pipeline: netease proxy lifecycle + one collect→export→push pass.
 
+The NeteaseCloudMusicApi proxy (:3000) is started **lazily** — only while a
+netease-touching operation runs (verify / manual push / purge / logon collect) —
+then stopped again, so nothing is left running when idle.
+
+Proxy use is reference-counted (`acquire`/`release`) so concurrent operations
+share one proxy and it is only stopped when the last user is done.
+
 Shared by:
 - ``start.py`` (daemon mode, manual ``python start.py``),
-- ``tools/run_daily.py`` (Windows Task Scheduler one-shot: logon + 07:30),
-- ``daily_push/app.py`` (settings page 「手动推送」).
+- ``tools/run_daily.py`` (Windows logon one-shot),
+- ``daily_push/app.py`` (settings page 检测 / 手动推送 / 清理发布).
 """
 import os
 import socket
 import subprocess
+import threading
 import time
 
 from . import proc
@@ -16,8 +24,9 @@ from . import run_status
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NODE_SERVER_JS = os.path.join(PROJECT_DIR, "netease_server.js")
 
-# The NeteaseCloudMusicApi process we spawned (None if it was already running).
-_proxy = None
+_lock = threading.Lock()
+_proxy = None   # the NeteaseCloudMusicApi Popen *we* started (None otherwise)
+_refs = 0       # number of operations currently using the proxy
 
 
 def _port_open(host, port, timeout=1.0):
@@ -37,15 +46,11 @@ def _netease_addr(cfg):
     return host or "localhost", int(port or 3000)
 
 
-def ensure_netease_api(cfg=None, wait=15.0):
-    """Ensure NeteaseCloudMusicApi is listening; spawn if needed.
-
-    Returns True if it is up.  Remembers the process we spawned so
-    :func:`stop_netease_api` can clean it up.
-    """
+def _ensure_locked(wait):
+    """Spawn the proxy if needed. Caller must hold ``_lock``."""
     global _proxy
     from .config import load_config
-    cfg = cfg or load_config()
+    cfg = load_config()
     if (cfg.get("netease") or {}).get("mode", "api") != "api":
         return True
     host, port = _netease_addr(cfg)
@@ -64,8 +69,8 @@ def ensure_netease_api(cfg=None, wait=15.0):
     return False
 
 
-def stop_netease_api():
-    """Terminate the proxy only if *this* process started it."""
+def _stop_locked():
+    """Terminate the proxy if *we* started it. Caller must hold ``_lock``."""
     global _proxy
     if _proxy is not None and _proxy.poll() is None:
         try:
@@ -73,6 +78,44 @@ def stop_netease_api():
         except Exception:
             pass
     _proxy = None
+
+
+def ensure_netease_api(wait=15.0):
+    """Ensure the proxy is up (no refcount); used by daemon mode / logon task."""
+    with _lock:
+        return _ensure_locked(wait)
+
+
+def acquire(wait=15.0):
+    """Mark the start of a netease-touching operation (starts proxy if needed).
+
+    Always pair with :func:`release` in a ``finally`` block.
+    """
+    global _refs
+    with _lock:
+        ok = True
+        if _refs == 0:
+            ok = _ensure_locked(wait)
+        _refs += 1
+        return ok
+
+
+def release():
+    """Mark the end of a netease-touching operation; stops the proxy at ref 0."""
+    global _refs
+    with _lock:
+        if _refs > 0:
+            _refs -= 1
+        if _refs == 0:
+            _stop_locked()
+
+
+def stop_netease_api():
+    """Force-stop the proxy (service shutdown), regardless of the refcount."""
+    global _refs
+    with _lock:
+        _refs = 0
+        _stop_locked()
 
 
 def collect_errors(result):

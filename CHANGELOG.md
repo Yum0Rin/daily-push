@@ -10,9 +10,11 @@
   - **采集**：登录时 `Startup\DailyPush.vbs` → `tools/run_daily.py` 一次性「采集 → 导出 → 推送」后退出；
     07:30 的定时采集交给云端 GitHub Actions，本地不再定时（移除本地调度线程 / `push_time` 生效）。
   - **网页**：按需启停。开始菜单「每日推送」→ `tools/open_dashboard.py` → `start.py --serve-only`
-    （只起 Flask + 网易云代理，不采集、不定时）；设置页「停止本地服务」关闭，网易云代理一并退出。
+    （只起 Flask，不采集、不定时；网易云代理懒加载）；设置页「停止本地服务」关闭。
   - 新增 `daily_push/pipeline.py`：`ensure_netease_api`/`stop_netease_api`（只关自己拉起的代理）+ `run_once`，
     登录任务 / 设置页「手动推送」/ `start.py` 共用。
+- **网易云代理懒加载**：`pipeline.acquire()/release()`（引用计数）——只有「检测网易云 / 手动推送 / 清理发布」
+  时才拉起 `:3000` 代理，用完即关；打开网页只是看看**不会**起代理。并发操作共用同一个代理。
 - 设置页顶栏「← 返回仪表盘」改为「← 返回推送页」。
 
 ### 新增
@@ -25,7 +27,7 @@
 - `tools/run_daily.py`：登录时一次性采集并推送（跑完退出，关掉自己拉起的代理）。
 
 ### 测试
-- `tests/test_settings_api.py` 增加 push / shutdown 接口 CSRF 断言；新增 `tests/test_pipeline.py`；共 70 项。
+- `tests/test_settings_api.py` 增加 push / shutdown 接口 CSRF 断言；新增 `tests/test_pipeline.py`（含代理引用计数）；共 71 项。
 
 ## 2026-09-13
 

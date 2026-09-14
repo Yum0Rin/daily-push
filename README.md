@@ -4,7 +4,8 @@
 采集结果写入 SQLite，本地通过 Flask 网页查看，并自动导出静态页推送到 GitHub Pages，手机随时可看。
 
 > **运行方式**：云端每天 07:30 自动采集并发布 Pages；本地**无常驻**——登录时一次性采集并推送
-> （`tools/run_daily.py`），本地网页 + 网易云代理**按需启停**（开始菜单「每日推送」打开、设置页「停止本地服务」关闭）。
+> （`tools/run_daily.py`），本地网页**按需启停**（开始菜单「每日推送」打开、设置页「停止本地服务」关闭），
+> 网易云代理**懒加载**（只在「检测网易云 / 手动推送 / 清理发布」时起，用完即关）。
 
 ---
 
@@ -107,13 +108,13 @@ daily-push/
 
 | 模块 | 一句话职责 |
 |------|-----------|
-| `start.py` | 本地入口：默认「拉起网易云 API → 采集 → Flask 网页」；`--serve-only` 只起网页+代理（按需、不采集/不定时）；失败发邮件并按 5 分钟重试 |
+| `start.py` | 本地入口：默认「拉起网易云 API → 采集 → Flask 网页」；`--serve-only` 只起网页（代理懒加载、不采集/不定时）；失败发邮件并按 5 分钟重试 |
 | `daily_push/config.py` | 转发 `settings_store.load_config`（保持向后兼容） |
 | `daily_push/settings_store.py` | 配置分层（默认 < settings.json < config.json）、schema 校验、原子写、备份、密钥打码 |
 | `daily_push/git_publish.py` | 只提交并推送 `settings.json` 到 `code` 分支（设置页用） |
 | `daily_push/cloud_secrets.py` | 本地 → 云端 Cookie 同步：本机 `gh secret set` 写 Secrets（值走 stdin） |
 | `daily_push/publish_lock.py` | 跨进程文件锁：采集/清理/推送/导出串行化，避免并发 git/SQLite 冲突 |
-| `daily_push/pipeline.py` | 采集流水线：网易云代理按需启停 + 一次 采集→导出→推送（登录任务/网页手动推送共用） |
+| `daily_push/pipeline.py` | 采集流水线：网易云代理**懒加载**（引用计数按需启停）+ 一次 采集→导出→推送（登录任务/网页手动推送共用） |
 | `daily_push/proc.py` | 子进程封装：Windows 下统一加 `CREATE_NO_WINDOW`，`git`/`gh`/`ncm-cli` 不再弹控制台窗口 |
 | `daily_push/run_status.py` | 记录上次采集/推送/检测时间到 `<data_dir>/status.json` |
 | `daily_push/netease_history.py` | 历史日推按评论/收藏阈值过滤 + 补全计数（`apply_history`） |
@@ -174,7 +175,7 @@ push_site()  ──►  GitHub Pages（手机可访问）
 ```
 
 > **本地不再常驻**：登录时由 `tools/run_daily.py` 一次性采集并推送（跑完退出）；
-> 07:30 的定时采集由云端 GitHub Actions 负责。Flask 网页 + 网易云代理只在需要时启动。
+> 07:30 的定时采集由云端 GitHub Actions 负责。Flask 网页按需启停；网易云代理懒加载（仅网易云操作期间）。
 
 ### 设置与屏蔽名单链路（本地设置页 `/settings`）
 
@@ -220,9 +221,9 @@ python start.py --serve-only       # 按需起本地网页（不采集、不定�
 - ✅ 本地 → 云端 Cookie 同步：设置页勾「同步云端」经 `gh secret set` 直写云端 Secrets；邮件 `cookie-repair` 流程保留兜底。
 - ✅ 屏蔽词全量生效：保存后清理历史与今天、重发 Pages，并把 `settings.json` 推到 `code` 供云端采集同源过滤。
 - ✅ 配置分层：`settings.json`（非密钥策略，跟踪入库）与 `config.json`（密钥，gitignore），本地/云端同源。
-- ✅ 本地无常驻：登录时一次性采集（`tools/run_daily.py`）后退出；Flask 网页 + 网易云代理**按需启停**（开始菜单「每日推送」打开，设置页「停止本地服务」关闭）；采集/清理/推送用跨进程文件锁串行化。
+- ✅ 本地无常驻：登录时一次性采集（`tools/run_daily.py`）后退出；Flask 网页**按需启停**（开始菜单「每日推送」打开，设置页「停止本地服务」关闭）；网易云代理**懒加载**（仅网易云操作期间，引用计数自动开关）；采集/清理/推送用跨进程文件锁串行化。
 - ✅ 设置页：运行状态（含「手动推送」「停止本地服务」）、配置备份/还原、安全响应头、ⓘ 悬停引导。
-- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 70 项）。
+- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 71 项）。
 - ⛔ 小红书已暂停（接口被风控 `300011`，签名已摸清但账号被标记，见 `docs/sources/README.md`）。
 - 网易云只提供官网歌曲页链接（`orpheus://` 客户端协议本机无法唤起）。
 - 公众号采集依赖本机微信解密环境，云端不采集 mp（但本地 mp 会在推送时随站点合并保留）。

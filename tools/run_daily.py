@@ -40,13 +40,13 @@ def _email(subject, body):
 def main():
     import datetime
     _log("run_daily start")
-    pipeline.ensure_netease_api()
+    pipeline.acquire()
     try:
         summary = pipeline.run_once()
     except Exception as e:
         summary = {"errors": {"run": str(e)}}
     finally:
-        pipeline.stop_netease_api()
+        pipeline.release()
 
     errs = summary.get("errors") or {}
     if errs:

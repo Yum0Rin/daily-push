@@ -67,8 +67,8 @@ main:
 - 设置页顶栏「← 返回仪表盘」改为「← 返回推送页」。
 - 「🩺 运行状态」卡新增「手动推送」按钮：调 `/api/settings/push` 立刻跑一遍定时流程
   （采集 → 导出 → 推送 Pages），轮询 `/api/settings/push/status`，完成后刷新运行状态；不改数据、不清理。
-- 「🩺 运行状态」卡新增「停止本地服务」按钮：调 `/api/settings/shutdown` 关闭按需网页 + 网易云代理
-  （本机无常驻进程；下次从开始菜单「每日推送」打开）。
+- 「🩺 运行状态」卡新增「停止本地服务」按钮：调 `/api/settings/shutdown` 关闭按需网页
+  （网易云代理若在跑一并关）；本机无常驻进程，下次从开始菜单「每日推送」打开。
 
 - 移除「日期标签」区块（由 datePicker 显示日期）。
 - 移除 QQ 卡片（index.html `card-qq` / app.js `qqList`/`cardQQ` 及 summary 的 QQ 列）。
