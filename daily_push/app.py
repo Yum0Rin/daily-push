@@ -380,6 +380,78 @@ def create_app(config_path=None, settings_path=None):
         with _purge_lock:
             return jsonify(dict(_purge_state))
 
+    # -- run the daily pipeline now: collect -> export -> push ---------------
+    # Same sequence as the scheduled run (start.py:run_collect), but one pass
+    # triggered manually from the settings page.
+    _push_state = {
+        "running": False,
+        "done": False,
+        "started_at": None,
+        "finished_at": None,
+        "result": None,
+        "error": None,
+    }
+    _push_lock = threading.Lock()
+
+    def _run_push(lock):
+        with _push_lock:
+            _push_state.update(
+                running=True, done=False,
+                started_at=datetime.datetime.now().isoformat(timespec="seconds"),
+                error=None)
+        try:
+            result = collect_once()
+            errs = {k: v.get("error") for k, v in result.items()
+                    if isinstance(v, dict) and "error" in v}
+            summary = {"push_date": result.get("push_date"), "errors": errs,
+                       "exported": None, "pushed": None, "push_error": None}
+            if errs:
+                try:
+                    from tools.notify_email import send_email
+                    lines = [f"时间：{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                             "失败环节：本地 · 采集（手动推送）", ""]
+                    for k, v in errs.items():
+                        lines.append(f"· {k}: {v}")
+                    send_email("每日推送 · 本地采集失败", "\n".join(lines))
+                except Exception:
+                    pass
+            else:
+                run_status.record("last_collect", result.get("push_date"))
+                from .export_site import export_site, push_site
+                summary["exported"] = export_site()
+                try:
+                    summary["pushed"] = push_site()
+                except Exception as e:
+                    summary["push_error"] = str(e)
+                if summary["push_error"] is None:
+                    run_status.record("last_push")
+            with _push_lock:
+                _push_state["result"] = summary
+        except Exception as e:
+            with _push_lock:
+                _push_state["error"] = str(e)
+        finally:
+            with _push_lock:
+                _push_state["running"] = False
+                _push_state["done"] = True
+                _push_state["finished_at"] = datetime.datetime.now().isoformat(timespec="seconds")
+            lock.release()
+
+    @app.route("/api/settings/push", methods=["POST"])
+    def api_settings_push():
+        lock = heavy_lock()
+        try:
+            lock.acquire(blocking=False)
+        except LockBusy:
+            return jsonify({"error": "另一个任务正在运行，请稍后再试"}), 429
+        threading.Thread(target=_run_push, args=(lock,), daemon=True).start()
+        return jsonify({"status": "started"})
+
+    @app.route("/api/settings/push/status")
+    def api_settings_push_status():
+        with _push_lock:
+            return jsonify(dict(_push_state))
+
     return app
 
 

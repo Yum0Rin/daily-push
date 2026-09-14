@@ -281,13 +281,45 @@ async function saveParamsApply() {
   }
 }
 
-async function waitPurge() {
+async function waitTask(statusPath, timeoutMsg) {
   for (let i = 0; i < 180; i++) {
     await new Promise((r) => setTimeout(r, 1000));
-    const s = await api("/api/settings/purge/status");
+    const s = await api(statusPath);
     if (!s.running && s.done) return s;
   }
-  throw new Error("清理超时");
+  throw new Error(timeoutMsg || "任务超时");
+}
+
+function waitPurge() {
+  return waitTask("/api/settings/purge/status", "清理超时");
+}
+
+async function manualPush() {
+  const btn = $("manualPush");
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "推送中…";
+  try {
+    await api("/api/settings/push", { method: "POST", body: {} });
+    const s = await waitTask("/api/settings/push/status", "推送超时");
+    if (s.error) { toast("推送失败：" + s.error, false); return; }
+    const r = s.result || {};
+    if (r.errors && Object.keys(r.errors).length) {
+      toast("采集失败，未推送：" + Object.values(r.errors).join("；"), false);
+    } else if (r.push_error) {
+      toast("已采集导出，但 Pages 推送失败：" + r.push_error, false);
+    } else if (r.pushed) {
+      toast("手动推送完成：已采集并推送 Pages", true);
+    } else {
+      toast("已采集导出（未配置 site.repo，未推送）", false);
+    }
+    await load();
+  } catch (e) {
+    toast("推送失败：" + e.message, false);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = old;
+  }
 }
 
 // -------------------------------------------------------------------- init
@@ -388,6 +420,7 @@ async function init() {
   initTheme();
   $("savePolicy").addEventListener("click", savePolicy);
   $("saveParams").addEventListener("click", saveParamsApply);
+  $("manualPush").addEventListener("click", manualPush);
   $("downloadConfig").addEventListener("click", downloadConfig);
   $("restoreConfig").addEventListener("click", () => $("restoreFile").click());
   $("restoreFile").addEventListener("change", restoreConfig);

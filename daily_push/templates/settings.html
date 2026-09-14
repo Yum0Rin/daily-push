@@ -15,7 +15,7 @@
     <button id="themeToggle" class="ghost" title="切换主题">🌙</button>
   </div>
   <nav class="datebar">
-    <a class="ghost" href="/">← 返回仪表盘</a>
+    <a class="ghost" href="/">← 返回推送页</a>
     <span class="local-badge">仅本机可访问</span>
   </nav>
 </header>
@@ -24,8 +24,11 @@
   <div id="toast" class="toast"></div>
 
   <section class="card">
-    <h2>🩺 运行状态</h2>
+    <h2>🩺 运行状态
+      <span class="info" data-tip="「手动推送」= 现在立刻跑一遍定时任务：采集（网易云/B站/公众号）→ 导出静态站 → 推送 Pages。">i</span>
+    </h2>
     <div class="statusgrid" id="statusGrid"></div>
+    <div class="actions"><button id="manualPush">手动推送</button></div>
   </section>
 
   <section class="card">

@@ -120,7 +120,7 @@ daily-push/
 | `daily_push/export_site.py` | 导出单文件静态站 → git push 到 GitHub Pages |
 | `daily_push/__main__.py` | CLI：`python -m daily_push` 手动采集一次 |
 | `templates/index.html` + `static/*` | 无框架前端仪表盘，本地 API / 内联 `__DAYS__` 双数据源 |
-| `templates/settings.html` + `static/settings.*` | 本地设置页：登录状态检测/更新 Cookie、屏蔽名单、采集参数（仅本机，Host/Origin/CSRF 鉴权） |
+| `templates/settings.html` + `static/settings.*` | 本地设置页：登录状态检测/更新 Cookie、屏蔽名单、采集参数、手动推送（仅本机，Host/Origin/CSRF 鉴权） |
 | `tests/` | 标准库 `unittest` 单元测试（配置分层/接口鉴权/导出隔离/公众号过滤/git 提交范围） |
 | `tools/notify_email.py` | 失败邮件通知：本地读 `config.json` email 段，云端读 Secrets `SMTP_*` |
 | `tools/cookie_reply.py` | 回复邮件更新 Cookie：IMAP 读取 → 剥离引用 → 解析 → 验证 → 写回本地 |
@@ -200,13 +200,13 @@ python start.py                    # 一键启动（或 python start.py --no-col
 - ✅ 失败统一邮件通知（本地·采集/推送、云端），标明失败来源。
 - ✅ Cookie 失效自动修复：回复报错邮件贴新 Cookie，云端每 10 分钟轮询并更新 Secrets，本地自愈写回 config.json。
 - ✅ 网络/登录失败自动耐心重试：采集每 5 分钟、推送每 60 秒，恢复后自动补上。
-- ✅ 本地设置页 `/settings`：可视化编辑屏蔽名单 / 平台登录态（含 Cookie 更新与验证）/ 采集参数；仅本机可访问。
+- ✅ 本地设置页 `/settings`：可视化编辑屏蔽名单 / 平台登录态（含 Cookie 更新与验证）/ 采集参数；「手动推送」一键跑定时流程（采集→导出→推送 Pages）；仅本机可访问。
 - ✅ 本地 → 云端 Cookie 同步：设置页勾「同步云端」经 `gh secret set` 直写云端 Secrets；邮件 `cookie-repair` 流程保留兜底。
 - ✅ 屏蔽词全量生效：保存后清理历史与今天、重发 Pages，并把 `settings.json` 推到 `code` 供云端采集同源过滤。
 - ✅ 配置分层：`settings.json`（非密钥策略，跟踪入库）与 `config.json`（密钥，gitignore），本地/云端同源。
 - ✅ 静默启动：自启 `pythonw`（无控制台、单实例）；首次采集并成功推送后才自动打开本地网页；采集/清理/推送用跨进程文件锁串行化。
-- ✅ 设置页：运行状态、配置备份/还原、安全响应头、ⓘ 悬停引导。
-- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 60 项）。
+- ✅ 设置页：运行状态（含「手动推送」）、配置备份/还原、安全响应头、ⓘ 悬停引导。
+- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 66 项）。
 - ⛔ 小红书已暂停（接口被风控 `300011`，签名已摸清但账号被标记，见 `docs/sources/README.md`）。
 - 网易云只提供官网歌曲页链接（`orpheus://` 客户端协议本机无法唤起）。
 - 公众号采集依赖本机微信解密环境，云端不采集 mp（但本地 mp 会在推送时随站点合并保留）。

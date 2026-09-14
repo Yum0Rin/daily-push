@@ -64,7 +64,7 @@
 | 🔐 平台登录状态 | 网易云 / B站 是否已配置（值打码）、一键「检测当前」、粘贴新 Cookie「保存并验证」 |
 | 🚫 屏蔽名单 | B站 UP 名、公众号关键词的标签式增删；「保存并应用到全部推送」 |
 | ⚙️ 采集参数 | `push_time`、`max_songs`、`netease.max_comments/max_favorites/reserve`、`recent_days`、`max_videos`、`feed_pages`、`max_articles`、`mp_cutoff_hour`、各源 `reserve`；「保存参数」右侧 ⓘ 说明调整会应用到全部 |
-| 🩺 运行状态 | 上次采集 / 上次推送 / 上次清理发布 / 上次各平台检测时间 |
+| 🩺 运行状态 | 上次采集 / 上次推送 / 上次清理发布 / 上次各平台检测时间；「手动推送」立刻跑一遍定时流程（采集 → 导出 → 推送 Pages） |
 | 💾 配置备份 | 下载当前 `config.json`（含密钥，仅本机）/ 上传还原（覆盖前自动 `.bak`） |
 
 接口（全部要求本机 Host + 每次启动随机生成的 `X-CSRF-Token`）：
@@ -82,6 +82,8 @@
 | POST | `/api/settings/config-restore` | 上传备份还原 `config.json`（覆盖前自动 `.bak`） |
 | POST | `/api/settings/purge` | 异步任务：清理历史 + 重新导出 + 推送 Pages + 推送 `settings.json` |
 | GET | `/api/settings/purge/status` | 上述任务状态 |
+| POST | `/api/settings/push` | 异步任务：跑一遍定时流程（采集 → 导出 → 推送 Pages）；不改数据、不清理 |
+| GET | `/api/settings/push/status` | 上述任务状态 |
 
 ### 安全模型（`app.py:_guard_api`）
 

@@ -91,6 +91,10 @@ class SettingsApiTest(unittest.TestCase):
             self.client.post("/api/settings/sync-cloud",
                              json={"sources": ["bilibili"]}).status_code, 403)
 
+    def test_push_endpoints_require_token(self):
+        self.assertEqual(self.client.post("/api/settings/push", json={}).status_code, 403)
+        self.assertEqual(self.client.get("/api/settings/push/status").status_code, 403)
+
     def test_sync_cloud_without_repo_reports_error(self):
         r = self.client.post("/api/settings/sync-cloud",
                              json={"sources": ["bilibili"]}, headers=self._h())

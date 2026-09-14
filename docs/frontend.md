@@ -55,11 +55,18 @@ main:
 - 与仪表盘**同一套样式**（复用 `static/style.css`，追加 `settings.css`）；由 Flask 的 `/settings` 渲染。
 - 仅本机可访问，**不参与静态站导出**：`export_site.py` 会把 `#settingsLink` 从导出 HTML 中剥离。
 - 页面从 `<meta name="csrf-token">` 取本次启动的随机 token，所有 `/api/settings*` 请求带 `X-CSRF-Token`。
-- 三个区块：平台登录状态（检测 / 保存并验证 Cookie，值打码）、屏蔽名单（标签式增删 + 一键应用）、采集参数。
+- 区块：运行状态、平台登录状态（检测 / 保存并验证 Cookie，值打码）、屏蔽名单（标签式增删 + 一键应用）、
+  采集参数、配置备份；顶栏「← 返回推送页」。
 - 「保存并应用到全部推送」会轮询 `/api/settings/purge/status`，完成后按结果提示 Pages / 云端同步情况。
 - 仪表盘右上角新增 ⚙️ 入口；**静态站模式（`window.__DAYS__` 存在）下由 `app.js` 隐藏**，避免 Pages 404。
 
 ## 变更记录
+
+### 2026-09-14
+
+- 设置页顶栏「← 返回仪表盘」改为「← 返回推送页」。
+- 「🩺 运行状态」卡新增「手动推送」按钮：调 `/api/settings/push` 立刻跑一遍定时流程
+  （采集 → 导出 → 推送 Pages），轮询 `/api/settings/push/status`，完成后刷新运行状态；不改数据、不清理。
 
 - 移除「日期标签」区块（由 datePicker 显示日期）。
 - 移除 QQ 卡片（index.html `card-qq` / app.js `qqList`/`cardQQ` 及 summary 的 QQ 列）。
