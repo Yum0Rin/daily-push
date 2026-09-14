@@ -107,12 +107,17 @@ function fmtCount(n, icon) {
   return `<span class="cstat">${icon} ${txt}</span>`;
 }
 
-function renderMusic(data) {
+function renderMusic(data, hasDay) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
   const list = Array.isArray(data) ? data.filter((s) => !s.hidden) : [];
-  els.cardMusic.style.display = (isErr || list.length > 0) ? "" : "none";
+  els.cardMusic.style.display = hasDay ? "" : "none";
+  if (!hasDay) return;
   if (isErr) {
     els.songs.innerHTML = errBlock("netease", data.error);
+    return;
+  }
+  if (list.length === 0) {
+    els.songs.innerHTML = `<div class="module-note">🎵 今日暂无新推荐歌曲。</div>`;
     return;
   }
   els.songs.innerHTML = list.map((s) => {
@@ -133,12 +138,17 @@ function renderMusic(data) {
   }).join("");
 }
 
-function renderBili(data) {
+function renderBili(data, hasDay) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
   const list = Array.isArray(data) ? data.filter((u) => !u.hidden) : [];
-  els.cardBili.style.display = (isErr || list.length > 0) ? "" : "none";
+  els.cardBili.style.display = hasDay ? "" : "none";
+  if (!hasDay) return;
   if (isErr) {
     els.ups.innerHTML = errBlock("bilibili", data.error);
+    return;
+  }
+  if (list.length === 0) {
+    els.ups.innerHTML = `<div class="module-note">📺 今日暂无新B站视频。</div>`;
     return;
   }
   els.ups.innerHTML = list.map((u) => {
@@ -159,16 +169,16 @@ function renderBili(data) {
   }).join("");
 }
 
-function renderArticles(data) {
+function renderArticles(data, hasDay) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
   const list = Array.isArray(data) ? data.filter((a) => !a.hidden) : [];
-  const empty = list.length === 0;
-  els.cardMp.style.display = (isErr || list.length > 0 || empty) ? "" : "none";
+  els.cardMp.style.display = hasDay ? "" : "none";
+  if (!hasDay) return;
   if (isErr) {
     els.mpList.innerHTML = errBlock("mp", data.error);
     return;
   }
-  if (empty) {
+  if (list.length === 0) {
     // mp 为空时也保留卡片：云端（静态站）显示「仅本机采集」说明；
     // 本地则提示「今日暂无新推文」，避免公众号模块在网页上整个消失
     els.mpList.innerHTML = DAYS
@@ -195,18 +205,15 @@ function renderArticles(data) {
 }
 
 function render(data) {
-  renderMusic(data.netease);
-  renderBili(data.bilibili);
-  renderArticles(data.mp);
+  const hasDay = !!data;
+  renderMusic(data && data.netease, hasDay);
+  renderBili(data && data.bilibili, hasDay);
+  renderArticles(data && data.mp, hasDay);
 
-  const hasData = (x) => (Array.isArray(x) && x.some((i) => !i.hidden)) ||
-    (x && typeof x === "object" && !Array.isArray(x) && x.error);
-  const any = hasData(data.netease) || hasData(data.bilibili) || hasData(data.mp);
-  els.emptyState.style.display = any ? "none" : "";
-  // 整日无任何记录（显示「该日暂无推送记录」）时，不再显示公众号说明卡片，避免重复提示
-  if (!any) els.cardMp.style.display = "none";
-
-  renderSummary(data);
+  // 整日无记录（未采集）→ 只显示「该日暂无推送记录」；
+  // 有记录但某平台为空 → 各卡片显示「今日暂无新…」；采集失败 → 卡片显示错误块。
+  els.emptyState.style.display = hasDay ? "none" : "";
+  renderSummary(data || {});
 }
 
 function renderSummary(data) {
@@ -226,15 +233,13 @@ function renderSummary(data) {
 
 async function loadDay(date) {
   if (DAYS) {
-    render(DAYS[date] || { netease: [], bilibili: [], mp: [] });
+    render(DAYS[date] || null);
     return;
   }
   const d = await api("/api/day/" + date);
-  if (d && typeof d === "object" && d.netease === undefined && d.bilibili === undefined
-      && d.mp === undefined) {
-    d.netease = null; d.bilibili = null; d.mp = null;
-  }
-  render(d);
+  const hasRow = d && typeof d === "object"
+    && (d.netease !== undefined || d.bilibili !== undefined || d.mp !== undefined);
+  render(hasRow ? d : null);
 }
 
 function selectDate(ymd) {
