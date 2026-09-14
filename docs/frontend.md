@@ -21,7 +21,7 @@ main:
   card-music    # 🎵 网易云日推 Top N（带封面/播放外链）
   card-bili     # 📺 B站关注UP（最近视频：标题链接+UP名+时间，同公众号排版）
   card-mp       # 📰 微信公众号推文（作者+标题+时间，外链跳转，通知类弱化置底）
-  emptyState    # 无数据提示（每日开机自动采集）
+  emptyState    # 无数据提示（登录时自动采集一次）
 右下角：回到顶部按钮（🔝，滚动离开顶部时出现）
 ```
 
@@ -39,7 +39,7 @@ main:
   初始化时给 `#ups` 加上 `articles` class 以复用样式。
 - `renderMusic`：歌手/专辑下一行展示热评（`s.hot_comment`，双引号包裹）。
 - summary 点击：手动计算 `scrollTo`（卡片顶部对齐到吸顶标题栏下方），保证卡片标题可见。
-- 采集：无手动按钮，每日开机自动采集（另有 07:30 兜底定时），刷新页面即可看到。
+- 采集：无手动按钮；登录时自动采集一次（`tools/run_daily.py`），07:30 由云端采集；刷新页面即可看到。
 - 主题：`data-theme=dark/light`，持久化到 `localStorage.theme`。
 - 日期：`datePicker` + 前后切换；`loadDay` 请求 `/api/day/<date>`。
 - 渲染时全部经 `esc()` 转义（防 XSS）。
@@ -67,6 +67,8 @@ main:
 - 设置页顶栏「← 返回仪表盘」改为「← 返回推送页」。
 - 「🩺 运行状态」卡新增「手动推送」按钮：调 `/api/settings/push` 立刻跑一遍定时流程
   （采集 → 导出 → 推送 Pages），轮询 `/api/settings/push/status`，完成后刷新运行状态；不改数据、不清理。
+- 「🩺 运行状态」卡新增「停止本地服务」按钮：调 `/api/settings/shutdown` 关闭按需网页 + 网易云代理
+  （本机无常驻进程；下次从开始菜单「每日推送」打开）。
 
 - 移除「日期标签」区块（由 datePicker 显示日期）。
 - 移除 QQ 卡片（index.html `card-qq` / app.js `qqList`/`cardQQ` 及 summary 的 QQ 列）。

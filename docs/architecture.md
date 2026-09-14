@@ -5,11 +5,11 @@
 ## 整体架构：两条运行链路
 
 ```
-┌─ 本地链路（start.py）──────────────────────────────────────┐
-│  ensure_netease_api() → 拉起 :3000 Node API                 │
-│  run_collect()（daemon 线程） → collect_once()              │
-│  Flask (app.py) @ 5000  +  每日 push_time 定时线程          │
-│  采集完成后 export_site() + push_site() → 推 Pages           │
+┌─ 本地链路（无常驻）────────────────────────────────────────┐
+│  登录时：tools/run_daily.py 一次性 collect → export → push  │
+│          （跑完退出，关掉自己拉起的 :3000 代理）             │
+│  按需：start.py --serve-only 起 Flask @5000 + :3000 代理     │
+│        设置页「停止本地服务」→ 代理一并关闭                  │
 └─────────────────────────────────────────────────────────────┘
 
 ┌─ 云端链路（GitHub Actions）────────────────────────────────┐
@@ -97,7 +97,8 @@
 
 - 采集是**异步**的：`POST /api/collect` 用非阻塞锁 + 后台线程触发并立即返回，
   前端轮询 `/api/collect/status`。Flask `threaded=True`。
-- 本地日常不点按钮：开机自启（Startup 计划任务）自动采，另有 `push_time` 定时兜底。
+- 本地日常无常驻：登录启动项 `Startup\DailyPush.vbs` 跑一次 `tools/run_daily.py`（采完即退）；
+  本地网页按需启停（开始菜单「每日推送」→ `tools/open_dashboard.py` → `start.py --serve-only`）。
 
 ## B站防风控 + WBI 签名（bilibili.py）
 
@@ -152,21 +153,37 @@
 `_NeteaseNcmCli._cli()` 检测到 `远端同步失败 / 使用本地缓存` 即抛出 `NeteaseError`，
 拒绝用昨天/缓存的推荐冒充当天（断网时走 start.py 的耐心重试，网络恢复后补当天）。
 
+## 本地运行模式（无常驻，2026-09-14 起）
+
+**登录时一次性采集**：`Startup\DailyPush.vbs`（`pythonw`）→ `tools/run_daily.py`：
+`pipeline.ensure_netease_api()` → `pipeline.run_once()`（采集→导出→推送）→
+`pipeline.stop_netease_api()`（关掉**本进程拉起的** :3000 代理）→ 退出。
+采集失败/推送失败发失败邮件。**07:30 的定时采集交给云端 GitHub Actions，本地不再定时。**
+
+**按需网页**：开始菜单「每日推送」→ `tools/open_dashboard.py`：
+探测 `:5000`，没起就 `pythonw start.py --serve-only`，端口就绪后再开浏览器。
+设置页「停止本地服务」→ `POST /api/settings/shutdown` → 关代理 + `os._exit(0)`。
+
+## 共享流水线（pipeline.py）
+
+`daily_push/pipeline.py` 被登录任务 / 设置页「手动推送」/ `start.py` 共用：
+- `ensure_netease_api()`：按需拉起 `netease_server.js`（`:3000`），记住是不是自己拉起的。
+- `stop_netease_api()`：只关自己拉起的代理，避免误杀别人的。
+- `run_once()`：一次 `collect_once → export_site → push_site`；任一来源出错则**不发布**，返回 summary。
+
 ## start.py 说明
 
-- `--no-collect`：只启动服务，不做首次采集。
-- **静默启动（2026-09-12）**：不再一上来就弹浏览器；**首次采集并成功推送后**才自动打开本地网页
-  （`_first_push_event`，含后台重推成功的情况）。`--no-collect` 则服务就绪即打开。
-- `_port_open()` 端口检测去重，避免重复拉起网易云 API。
-- 每日定时：`push_time`（默认 07:30）独立 daemon 线程，作为开机采集的兜底；
-  **每轮重读 `settings.json`**，改完无需重启即生效。
+- **`--serve-only`**：按需网页模式——只起 Flask + 网易云代理，**不采集、不定时**（供开始菜单入口用）。
+- 默认模式：启动时先采集一次并推送，再服务（手动 `python start.py` 时用）。
+- **静默启动**：不再一上来就弹浏览器；默认模式**首次采集并成功推送后**才自动打开本地网页
+  （`_first_push_event`）。`--serve-only` 不自动开（由入口脚本开）。
 - 采集/推送经 `publish_lock` 跨进程锁串行化（与设置页清理任务互斥）。
-- 失败处理（统一邮件 + 耐心重试）：
+- 失败处理（默认模式，统一邮件 + 耐心重试）：
   - 采集**连续失败 2 次**才发「本地 · 采集失败」邮件（首次瞬时抖动不发），每 5 分钟重试；
   - 推送失败 → 发「本地 · 推送失败」邮件，后台每 60 秒重试直到成功；
   - cookie 类错误 → 邮件主题带 `ref=`，用本机 gh 触发云端 `cookie-repair`，
     并在重试时读邮箱回复自愈写回 `config.json`。
 - **静默运行**：自启改用 `pythonw.exe`（无控制台窗口）；无控制台时 `start.py` 自动把
-  stdout/stderr 写到 `start_out.log`。仅保留**一个**自启（避免多实例抢 :3000 / 端口）。
+  stdout/stderr 写到 `start_out.log`。
 - **子进程不弹窗（2026-09-13）**：所有 `git` / `gh` / `ncm-cli` 子进程统一经
   `daily_push/proc.py`（Windows 加 `CREATE_NO_WINDOW`），`pythonw` 与测试运行时不再闪控制台窗口。

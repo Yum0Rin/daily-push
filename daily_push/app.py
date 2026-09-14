@@ -400,11 +400,10 @@ def create_app(config_path=None, settings_path=None):
                 started_at=datetime.datetime.now().isoformat(timespec="seconds"),
                 error=None)
         try:
-            result = collect_once()
-            errs = {k: v.get("error") for k, v in result.items()
-                    if isinstance(v, dict) and "error" in v}
-            summary = {"push_date": result.get("push_date"), "errors": errs,
-                       "exported": None, "pushed": None, "push_error": None}
+            from . import pipeline
+            pipeline.ensure_netease_api()
+            summary = pipeline.run_once()
+            errs = summary.get("errors") or {}
             if errs:
                 try:
                     from tools.notify_email import send_email
@@ -415,16 +414,6 @@ def create_app(config_path=None, settings_path=None):
                     send_email("每日推送 · 本地采集失败", "\n".join(lines))
                 except Exception:
                     pass
-            else:
-                run_status.record("last_collect", result.get("push_date"))
-                from .export_site import export_site, push_site
-                summary["exported"] = export_site()
-                try:
-                    summary["pushed"] = push_site()
-                except Exception as e:
-                    summary["push_error"] = str(e)
-                if summary["push_error"] is None:
-                    run_status.record("last_push")
             with _push_lock:
                 _push_state["result"] = summary
         except Exception as e:
@@ -451,6 +440,21 @@ def create_app(config_path=None, settings_path=None):
     def api_settings_push_status():
         with _push_lock:
             return jsonify(dict(_push_state))
+
+    # -- stop the on-demand local service (web + netease proxy) --------------
+    @app.route("/api/settings/shutdown", methods=["POST"])
+    def api_settings_shutdown():
+        """Shut the local service down. Only the on-demand process is affected."""
+        import time as _time
+        from . import pipeline
+
+        def _bye():
+            _time.sleep(0.5)  # let the HTTP response flush first
+            pipeline.stop_netease_api()
+            os._exit(0)
+
+        threading.Thread(target=_bye, daemon=True).start()
+        return jsonify({"ok": True})
 
     return app
 

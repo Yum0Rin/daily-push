@@ -44,7 +44,7 @@
 | `email.smtp_user/pass` | 发件邮箱 + SMTP 授权码 | QQ 邮箱授权码 SMTP/IMAP 通用 |
 | `email.mail_to` | 收件邮箱 | 失败通知 / cookie 修复结果都发到这里 |
 | `email.imap_host/port` | IMAP 收信（可选，默认推导） | 默认 `smtp.`→`imap.`，端口 993 |
-| `push_time` | 本地每日定时采集时间 HH:MM | 默认 `07:30` |
+| `push_time` | 本地每日定时采集时间 HH:MM（**已弃用**：本地改为登录时一次性采集，07:30 由云端负责；仅兼容保留） | 默认 `07:30` |
 | `max_songs` | 网易云日推条数 | 默认 5；`0`=不限 |
 | `port` | Flask 本地端口 | 默认 5000 |
 | `data_dir` | SQLite 数据目录 | 默认 `data` |

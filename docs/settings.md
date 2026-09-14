@@ -32,13 +32,13 @@
 - `settings.json` 中的**密钥形状键会被剔除**（`_strip_secrets`），策略文件不可能夹带凭证。
 - 因此策略以 `settings.json` 为准，`config.json` 里的旧策略副本会被覆盖。
 - `load_config()` 每次调用都重新读盘，所以**屏蔽名单 / Cookie 改完下次采集即生效**；
-  `push_time` 等被 `start.py` 启动时读取的项需重启进程（见 §7）。
+  `port` 等被启动时读取的项需重启进程（见 §9）。
 
 ### 可编辑 schema（服务端白名单）
 
 写入前按显式 schema 校验，拒绝未知键与错误类型（`settings_store.py` 的 `POLICY_SPEC` / `SECRET_SPEC`）：
 
-- 策略：`push_time`(HH:MM)、`max_songs`、
+- 策略：`push_time`(HH:MM，兼容保留，本地已不定时)、`max_songs`、
   `netease.{max_comments,max_favorites,reserve}`、
   `bilibili.{exclude,recent_days,max_videos,feed_pages,reserve}`、
   `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour,reserve}`。
@@ -55,7 +55,8 @@
 
 ## 3. 本地设置页（`/settings`）
 
-`start.py` 启动后访问 `http://127.0.0.1:5000/settings`（仪表盘右上角 ⚙️ 也可进入；静态站模式下该入口隐藏）。
+从开始菜单「每日推送」打开（按需起 `start.py --serve-only`，**无常驻**），访问
+`http://127.0.0.1:5000/settings`（首页右上角 ⚙️ 也可进入；静态站模式下该入口隐藏）。
 
 功能：
 
@@ -63,8 +64,8 @@
 |------|------|
 | 🔐 平台登录状态 | 网易云 / B站 是否已配置（值打码）、一键「检测当前」、粘贴新 Cookie「保存并验证」 |
 | 🚫 屏蔽名单 | B站 UP 名、公众号关键词的标签式增删；「保存并应用到全部推送」 |
-| ⚙️ 采集参数 | `push_time`、`max_songs`、`netease.max_comments/max_favorites/reserve`、`recent_days`、`max_videos`、`feed_pages`、`max_articles`、`mp_cutoff_hour`、各源 `reserve`；「保存参数」右侧 ⓘ 说明调整会应用到全部 |
-| 🩺 运行状态 | 上次采集 / 上次推送 / 上次清理发布 / 上次各平台检测时间；「手动推送」立刻跑一遍定时流程（采集 → 导出 → 推送 Pages） |
+| ⚙️ 采集参数 | `max_songs`、`netease.max_comments/max_favorites/reserve`、`recent_days`、`max_videos`、`feed_pages`、`max_articles`、`mp_cutoff_hour`、各源 `reserve`；「保存参数」右侧 ⓘ 说明调整会应用到全部 |
+| 🩺 运行状态 | 上次采集 / 上次推送 / 上次清理发布 / 上次各平台检测时间；「手动推送」立刻跑一遍定时流程（采集 → 导出 → 推送 Pages）；「停止本地服务」按需关闭网页 + 网易云代理 |
 | 💾 配置备份 | 下载当前 `config.json`（含密钥，仅本机）/ 上传还原（覆盖前自动 `.bak`） |
 
 接口（全部要求本机 Host + 每次启动随机生成的 `X-CSRF-Token`）：
@@ -84,6 +85,7 @@
 | GET | `/api/settings/purge/status` | 上述任务状态 |
 | POST | `/api/settings/push` | 异步任务：跑一遍定时流程（采集 → 导出 → 推送 Pages）；不改数据、不清理 |
 | GET | `/api/settings/push/status` | 上述任务状态 |
+| POST | `/api/settings/shutdown` | 停止按需本地服务（关 Flask + 网易云代理）；仅影响按需进程 |
 
 ### 安全模型（`app.py:_guard_api`）
 
@@ -204,7 +206,8 @@ python -m unittest discover -s tests -t .
 ## 9. 已知限制
 
 - `port`、`netease.mode` 等由 `create_app` / `start.py` 启动时读取的项，改完需重启进程才生效；
-  `push_time` 已支持**热更新**（调度线程每轮重读）；屏蔽名单 / Cookie 因每次采集重读，无需重启。
+  屏蔽名单 / Cookie 因每次采集重读，无需重启。本地已不做定时采集（07:30 由云端负责），
+  `push_time` 兼容保留但不再生效。
 - 网页更新的是**本地** `config.json`；云端 Cookie 需勾选「同步云端」（本机 `gh` 已登录）才会同步，
   否则云端仍走「回复邮件自动更新」或手动改 Secrets。
 - 设置页仅本机可用；PC 关机时无法访问（Cookie 靠邮件兜底，屏蔽名单等下次开机再改）。

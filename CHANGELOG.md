@@ -5,16 +5,27 @@
 
 ## 2026-09-14
 
+### 变更
+- **本地改为「无常驻」架构**：不再有一个常驻的 `start.py`（Flask + 调度线程 + Node 代理）。
+  - **采集**：登录时 `Startup\DailyPush.vbs` → `tools/run_daily.py` 一次性「采集 → 导出 → 推送」后退出；
+    07:30 的定时采集交给云端 GitHub Actions，本地不再定时（移除本地调度线程 / `push_time` 生效）。
+  - **网页**：按需启停。开始菜单「每日推送」→ `tools/open_dashboard.py` → `start.py --serve-only`
+    （只起 Flask + 网易云代理，不采集、不定时）；设置页「停止本地服务」关闭，网易云代理一并退出。
+  - 新增 `daily_push/pipeline.py`：`ensure_netease_api`/`stop_netease_api`（只关自己拉起的代理）+ `run_once`，
+    登录任务 / 设置页「手动推送」/ `start.py` 共用。
+- 设置页顶栏「← 返回仪表盘」改为「← 返回推送页」。
+
 ### 新增
 - 本地设置页「🩺 运行状态」卡新增「手动推送」：立刻手动跑一遍**定时任务的同一套流程**
   （采集 → 导出 → 推送 Pages），不改数据、不做屏蔽清理。
   接口 `POST /api/settings/push` + `GET /api/settings/push/status`。
-
-### 变更
-- 设置页顶栏「← 返回仪表盘」改为「← 返回推送页」。
+- 设置页「停止本地服务」按钮 + `POST /api/settings/shutdown`：关 Flask + 网易云代理（仅按需进程）。
+- 开始菜单快捷入口：`tools/open_dashboard.py` 探测 `:5000`，没起就 `pythonw start.py --serve-only`，
+  起来后再开浏览器；`tools/create_shortcut.py` 生成「每日推送」快捷方式（可右键固定到开始屏幕）。
+- `tools/run_daily.py`：登录时一次性采集并推送（跑完退出，关掉自己拉起的代理）。
 
 ### 测试
-- `tests/test_settings_api.py` 增加手动推送接口的 CSRF 鉴权断言，共 66 项。
+- `tests/test_settings_api.py` 增加 push / shutdown 接口 CSRF 断言；新增 `tests/test_pipeline.py`；共 70 项。
 
 ## 2026-09-13
 

@@ -11,22 +11,20 @@
 """
 import os
 import socket
-import subprocess
 import sys
 import threading
 import time
 import webbrowser
-from datetime import datetime, timedelta
+from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from daily_push import proc, run_status
+from daily_push import pipeline, run_status
 from daily_push.config import load_config
 from daily_push.collector import collect_once
 from daily_push.publish_lock import LockBusy, heavy_lock
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
-NODE_SERVER_JS = os.path.join(PROJECT_DIR, "netease_server.js")
 
 COLLECT_RETRY_INTERVAL = 300  # 采集失败后耐心重试间隔（秒）
 PUSH_RETRY_INTERVAL = 60      # 推送失败后后台重试间隔（秒）
@@ -103,45 +101,6 @@ def _try_apply_reply_cookie(errs):
             print("[cookie-reply] 回复解析失败")
     except Exception as e:
         print(f"[cookie-reply] ERROR {e}")
-
-
-def _port_open(host, port):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(1)
-        try:
-            s.connect((host, port))
-            return True
-        except OSError:
-            return False
-
-
-def ensure_netease_api():
-    """Ensure NeteaseCloudMusicApi is listening on :3000; spawn if needed."""
-    cfg = load_config()
-    mode = cfg.get("netease", {}).get("mode", "api")
-    if mode != "api":
-        print(f"[start] netease mode={mode}, skipping NeteaseCloudMusicApi")
-        return
-    base = cfg.get("netease", {}).get("base_url", "http://localhost:3000")
-    _, _, rest = base.partition("://")
-    host, _, port = rest.partition(":")
-    port = int(port)
-    if _port_open(host, port):
-        print(f"[start] NeteaseCloudMusicApi already on {host}:{port}")
-        return
-    print(f"[start] starting NeteaseCloudMusicApi on {host}:{port} ...")
-    proc.popen(
-        ["node", NODE_SERVER_JS],
-        cwd=PROJECT_DIR,
-        stdout=open(os.path.join(PROJECT_DIR, "netease.out.log"), "w"),
-        stderr=subprocess.STDOUT,
-    )
-    for _ in range(30):
-        if _port_open(host, port):
-            print("[start] NeteaseCloudMusicApi ready")
-            return
-        time.sleep(0.5)
-    print("[start] WARNING: NeteaseCloudMusicApi did not come up in time")
 
 
 def run_collect(stop_at=None):
@@ -244,36 +203,6 @@ def _start_push_retry():
     threading.Thread(target=worker, daemon=True).start()
 
 
-def _current_push_time(default):
-    try:
-        return load_config().get("push_time", default) or default
-    except Exception:
-        return default
-
-
-def scheduler_thread(default_push_time):
-    """Daily collect at push_time (HH:MM); re-reads settings so edits apply live."""
-    print(f"[sched] daily collect scheduled at {default_push_time}")
-    while True:
-        push_time = _current_push_time(default_push_time)
-        try:
-            hh, mm = (int(x) for x in push_time.split(":"))
-        except Exception:
-            hh, mm = (int(x) for x in default_push_time.split(":"))
-        now = datetime.now()
-        target = now.replace(hour=hh, minute=mm, second=0, microsecond=0)
-        if target <= now:
-            target += timedelta(days=1)
-        while datetime.now() < target:
-            remaining = (target - datetime.now()).total_seconds()
-            time.sleep(min(30, max(0.5, remaining)))
-            if _current_push_time(default_push_time) != push_time:
-                print("[sched] push_time changed, rescheduling")
-                break
-        else:
-            run_collect(stop_at=target + timedelta(days=1))
-
-
 def open_dashboard(host, port, wait_event=None):
     """Wait for the server (and, if given, the first successful push), then open browser."""
     def _wait():
@@ -315,8 +244,11 @@ def main():
             stream.reconfigure(line_buffering=True)
         except Exception:
             pass
-    do_collect = "--no-collect" not in sys.argv
-    ensure_netease_api()
+    # --serve-only: 按需网页模式（不采集、不定时；只服务 + 网易云代理，供设置页用）。
+    # 默认模式仍会在启动时采集一次并推送（手动 `python start.py` 时用）。
+    serve_only = "--serve-only" in sys.argv
+    do_collect = "--no-collect" not in sys.argv and not serve_only
+    pipeline.ensure_netease_api()
     if do_collect:
         threading.Thread(target=run_collect, daemon=True).start()
     else:
@@ -325,13 +257,10 @@ def main():
     from daily_push.app import create_app
     cfg = load_config()
     port = int(cfg.get("port", 5000))
-    push_time = cfg.get("push_time", "07:30")
-
-    thread = threading.Thread(target=scheduler_thread, args=(push_time,), daemon=True)
-    thread.start()
 
     print(f"[start] open http://127.0.0.1:{port}  (Ctrl+C to stop)")
-    open_dashboard("127.0.0.1", port, wait_event=_first_push_event)
+    if not serve_only and not os.environ.get("DAILYPUSH_LAUNCHED"):
+        open_dashboard("127.0.0.1", port, wait_event=_first_push_event)
     create_app().run(host="127.0.0.1", port=port, debug=False, use_reloader=False, threaded=True)
 
 

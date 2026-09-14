@@ -175,7 +175,6 @@ function renderChips() {
 
 // ------------------------------------------------------------------ params
 const PARAMS = [
-  { path: ["push_time"], label: "每日采集时间 (HH:MM)", type: "time" },
   { path: ["max_songs"], label: "网易云歌曲数（0=不限）", type: "number" },
   { path: ["netease", "max_comments"], label: "网易云最大评论数（超过则跳过，0=不限）", type: "number" },
   { path: ["netease", "max_favorites"], label: "网易云最大收藏数（超过则跳过，0=不限）", type: "number" },
@@ -416,11 +415,25 @@ async function restoreConfig(e) {
   }
 }
 
+async function stopServer() {
+  if (!confirm("停止后本页将无法访问，网易云代理也会一并关闭。确定停止本地服务？")) return;
+  const btn = $("stopServer");
+  btn.disabled = true;
+  try {
+    await api("/api/settings/shutdown", { method: "POST", body: {} });
+    toast("本地服务已停止，可关闭此页；下次从开始菜单「每日推送」打开", true);
+  } catch (e) {
+    toast("停止失败：" + e.message, false);
+    btn.disabled = false;
+  }
+}
+
 async function init() {
   initTheme();
   $("savePolicy").addEventListener("click", savePolicy);
   $("saveParams").addEventListener("click", saveParamsApply);
   $("manualPush").addEventListener("click", manualPush);
+  $("stopServer").addEventListener("click", stopServer);
   $("downloadConfig").addEventListener("click", downloadConfig);
   $("restoreConfig").addEventListener("click", () => $("restoreFile").click());
   $("restoreFile").addEventListener("change", restoreConfig);
