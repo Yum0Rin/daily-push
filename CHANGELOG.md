@@ -3,6 +3,31 @@
 > 本项目无正式版本号，按日期记录重要变更，**最新在上**。
 > 更细的设计见 [docs/](docs/README.md)，当前能力与已知问题见 [docs/status.md](docs/status.md)。
 
+## 2026-09-22
+
+### 新增
+- **Linux 本地部署**：同一份代码可在 Linux 跑本地部分（采集→导出→推送 + 按需网页）。
+  - `tools/install_linux.py`：幂等地把本地集成装到桌面——systemd 用户服务
+    `daily-push-collect.service`（oneshot，绑 `graphical-session.target`，登录跑一次 `tools/run_daily.py` 后退出，
+    无常驻；`ExecStartPre` 先等 DNS）+ 应用菜单入口 `daily-push.desktop`（走 `tools/open_dashboard.py`，
+    按需拉起 `start.py --serve-only`）。支持 `--start` 立即验证、`--uninstall` 卸载。
+  - `assets/daily-push.svg`：桌面入口图标。
+- `docs/linux.md`：Linux 部署说明与平台差异对照。
+
+### 变更
+- **平台适配**（不改变 Windows 行为）：
+  - `daily_push/pipeline.py` `_node_exe()`、`daily_push/cloud_secrets.py` `_gh_exe()`：`node` / `gh` 不在 PATH 时
+    退回用户级路径 `~/.local/node/bin/node`、`~/.local/bin/gh`。
+  - `daily_push/collector.py`：`wechat_available()` 改为同时检查微信解密模块是否可用；**非 Windows** 且无解密环境时
+    公众号源**静默跳过**（不再写 `mp` 错误），避免整轮采集被误判失败而中止推送。`sources/wechat_article.py`
+    新增 `decryption_available()`。
+  - `tests/test_cloud_secrets.py`：`gh` 断言改为按 basename 匹配，并让 `test_no_gh` 同时屏蔽 fallback 路径（跨平台可过）。
+
+### 验证
+- 单元测试 71 项全通过；网易云（Node `:3000` 代理）采集 20 条、B站 7 条、mp 静默跳过；
+  Flask `:5000`（`/`、`/settings`、`/api/status`）均 200；`export_site()` + `push_site()` 推送 Pages 成功；
+  systemd 服务 `start` 一次跑通（`done push_date=2026-09-22 pushed=True`）。
+
 ## 2026-09-15
 
 ### 变更

@@ -2,6 +2,7 @@
 import datetime
 import json
 import os
+import sys
 import time
 
 from .config import load_config
@@ -83,8 +84,12 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
                 result["mp"] = WeChatArticleCollector(cfg).collect(exclude_urls=pushed_mp)
             except Exception as e:
                 result["mp"] = {"error": str(e)}
-        else:
+        elif sys.platform == "win32":
             result["mp"] = {"error": "当前环境无法获取微信公众号数据（缺少微信解密环境）"}
+        else:
+            # 非 Windows：本机没有微信解密环境（如 Linux 服务器），静默跳过公众号，
+            # 不把「无此源」当成采集失败——否则整轮采集会被判失败而中止推送。
+            result.pop("mp", None)
     else:
         result.pop("mp", None)
 
@@ -117,8 +122,13 @@ collect = collect_once  # alias
 
 
 def wechat_available():
+    """本机是否有可用的微信解密环境（解压库 + 解密模块都在）。"""
     try:
         import zstandard  # noqa
     except ImportError:
         return False
-    return True
+    try:
+        from .sources.wechat_article import decryption_available
+        return decryption_available()
+    except Exception:
+        return False

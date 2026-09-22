@@ -17,6 +17,7 @@ site/
 __pycache__/
 *.pyc
 node_modules/
+.venv/
 
 # 本地运行痕迹
 .netease_api_tmp/

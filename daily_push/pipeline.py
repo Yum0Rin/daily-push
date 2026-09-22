@@ -13,6 +13,7 @@ Shared by:
 - ``daily_push/app.py`` (settings page 检测 / 手动推送 / 清理发布).
 """
 import os
+import shutil
 import socket
 import subprocess
 import threading
@@ -23,6 +24,19 @@ from . import run_status
 
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 NODE_SERVER_JS = os.path.join(PROJECT_DIR, "netease_server.js")
+
+
+def _node_exe():
+    """Locate the ``node`` binary.
+
+    ``node`` may not be on PATH (e.g. a user-local install), so fall back to the
+    well-known ``~/.local/node/bin/node`` used on this machine.
+    """
+    exe = shutil.which("node")
+    if exe:
+        return exe
+    fallback = os.path.expanduser("~/.local/node/bin/node")
+    return fallback if os.path.exists(fallback) else "node"
 
 _lock = threading.Lock()
 _proxy = None   # the NeteaseCloudMusicApi Popen *we* started (None otherwise)
@@ -57,7 +71,7 @@ def _ensure_locked(wait):
     if _port_open(host, port):
         return True
     _proxy = proc.popen(
-        ["node", NODE_SERVER_JS], cwd=PROJECT_DIR,
+        [_node_exe(), NODE_SERVER_JS], cwd=PROJECT_DIR,
         stdout=open(os.path.join(PROJECT_DIR, "netease.out.log"), "w"),
         stderr=subprocess.STDOUT,
     )

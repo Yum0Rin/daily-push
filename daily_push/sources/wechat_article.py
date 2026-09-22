@@ -20,6 +20,21 @@ if WMCP_DIR not in sys.path:
     sys.path.insert(0, WMCP_DIR)
 
 
+def decryption_available():
+    """Whether the local WeChat decryption module (``wechat_cli_mcp``) is usable.
+
+    On Linux there is no such environment (the module and decrypted DBs live in a
+    Windows WeChat install), so callers skip the WeChat source instead of failing.
+    """
+    if not os.path.isdir(WMCP_DIR):
+        return False
+    try:
+        import wechat_cli_mcp  # noqa: F401
+    except Exception:
+        return False
+    return True
+
+
 class WeChatError(Exception):
     pass
 

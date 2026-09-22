@@ -24,7 +24,7 @@
 | 微信数据 | 复用 `chat-mcp/wechat-mcp-server` 的解密模块 | 解密本地微信库，取公众号推文 |
 | 云端定时 | GitHub Actions（`schedule` cron） | 每天 23:30 UTC（=07:30 北京时间）自动采集并发布（云端按北京时间入库） |
 | 静态托管 | GitHub Pages | 采集结果对外可访问（无需开电脑） |
-| 计划任务 | Windows 登录启动项（`Startup\DailyPush.vbs`）+ 开始菜单快捷方式 | 登录时一次性采集；本地网页按需启停（**无常驻**） |
+| 计划任务 | Windows 登录启动项（`Startup\DailyPush.vbs`）+ 开始菜单快捷方式；Linux systemd 用户服务 + 应用菜单入口 | 登录时一次性采集；本地网页按需启停（**无常驻**） |
 
 依赖文件：`requirements.txt`（Python）、`package.json`（Node）。
 
@@ -43,6 +43,7 @@ daily-push/
 ├── netease_server.js            # 网易云 API 启动脚本
 ├── data/                        # SQLite 库 + cutoffs.json（已 gitignore）
 ├── site/                        # 导出后的静态站 index.html（已 gitignore）
+├── assets/daily-push.svg        # 桌面入口图标（Linux `.desktop` 用）
 ├── daily_push/                  # 主包
 │   ├── __main__.py              # CLI：python -m daily_push 手动采集
 │   ├── config.py                # 配置加载（转发 settings_store.load_config）
@@ -79,6 +80,7 @@ daily-push/
 │   ├── trigger_cookie_repair.py # 判定 cookie 类错误并触发 cookie-repair
 │   ├── open_dashboard.py        # 一键打开本地网页（没起则先启动 start.py）
 │   ├── create_shortcut.py       # 生成开始菜单快捷方式（指向 open_dashboard.py）
+│   ├── install_linux.py         # Linux 桌面集成：systemd 用户服务 + 应用菜单入口（幂等/可卸载）
 │   ├── xhs_console.txt          # 小红书签名调研备忘（未启用）
 │   └── xhs_capture.txt          # 小红书请求头捕获脚本（未启用）
 ├── tests/                       # 单元测试（标准库 unittest，零新依赖）
@@ -137,6 +139,7 @@ daily-push/
 | `tools/trigger_cookie_repair.py` | 判定 cookie 类错误并触发 `cookie-repair` 工作流 |
 | `tools/open_dashboard.py` | 一键打开本地网页：探测 `:5000`，没起则拉起 `start.py`，起来后再开浏览器 |
 | `tools/create_shortcut.py` | 生成开始菜单「每日推送」快捷方式（指向 `open_dashboard.py`） |
+| `tools/install_linux.py` | Linux 桌面集成安装器：systemd 用户服务（登录采集）+ 应用菜单入口（按需网页），幂等/可卸载 |
 | `tools/cloud_collect.py` | 云端采集辅助：secrets 生成 config、云端采集入口 |
 | `tools/run_daily.py` | 登录时一次性采集并推送（跑完退出，关掉自己拉起的网易云代理） |
 | `.github/workflows/daily-collect.yml` | 云端每日采集 + 发布 Pages + 出错发邮件 + 触发 cookie-repair |
@@ -205,6 +208,17 @@ python start.py --serve-only       # 按需起本地网页（不采集、不定�
 采集（手动跑一次，含导出+推送）：`python tools/run_daily.py`；只采集不推送：`python -m daily_push`。
 登录时 `Startup\DailyPush.vbs` 会自动跑一次 `tools/run_daily.py`。
 
+**Linux**：建议用虚拟环境，并把桌面集成交给安装器（登录一次性采集 + 应用菜单「每日推送」）：
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt   # Python 依赖
+npm install                                                          # Node：NeteaseCloudMusicApi
+.venv/bin/python tools/install_linux.py           # 装 systemd 用户服务 + 应用菜单入口（幂等）
+.venv/bin/python tools/install_linux.py --start   # 立刻跑一次验证
+```
+
+详见 [docs/linux.md](docs/linux.md)（含与 Windows 的差异、平台适配改动、微信不可用的说明）。
+
 > 详见 [docs/](docs/README.md)，尤其 [配置与隐私](docs/config-privacy.md)：`config.json`、`data/`、`*.log` 均已 gitignore，请勿提交 Cookie 等敏感信息。
 
 ---
@@ -222,6 +236,7 @@ python start.py --serve-only       # 按需起本地网页（不采集、不定�
 - ✅ 屏蔽词全量生效：保存后清理历史与今天、重发 Pages，并把 `settings.json` 推到 `code` 供云端采集同源过滤。
 - ✅ 配置分层：`settings.json`（非密钥策略，跟踪入库）与 `config.json`（密钥，gitignore），本地/云端同源。
 - ✅ 本地无常驻：登录时一次性采集（`tools/run_daily.py`）后退出；Flask 网页**按需启停**（开始菜单「每日推送」打开，设置页「停止本地服务」关闭）；网易云代理**懒加载**（仅网易云操作期间，引用计数自动开关）；采集/清理/推送用跨进程文件锁串行化。
+- ✅ 跨平台本地：Windows 与 Linux 皆可跑本地部分——Windows 用启动项 + 开始菜单，Linux 用 `tools/install_linux.py`（systemd 用户服务 + 应用菜单）。Linux 无微信解密环境，**公众号源自动静默跳过**（不影响其余采集与推送）。
 - ✅ 设置页：运行状态（含「手动推送」「停止本地服务」）、配置备份/还原、安全响应头、ⓘ 悬停引导。
 - ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 71 项）。
 - ⛔ 小红书已暂停（接口被风控 `300011`，签名已摸清但账号被标记，见 `docs/sources/README.md`）。

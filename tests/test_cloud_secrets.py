@@ -1,4 +1,5 @@
 """cloud_secrets: local -> cloud gh secret set (no real gh calls)."""
+import os
 import unittest
 from unittest import mock
 
@@ -25,7 +26,8 @@ class SyncCookiesTest(unittest.TestCase):
                                   {"netease": "MUSIC_U=abc", "bilibili": "sess"})
         self.assertTrue(res["netease"]["ok"])
         self.assertTrue(res["bilibili"]["ok"])
-        self.assertEqual(calls[0]["args"][:3], ["gh", "secret", "set"])
+        self.assertEqual(os.path.basename(calls[0]["args"][0]), "gh")
+        self.assertEqual(calls[0]["args"][1:3], ["secret", "set"])
         self.assertIn("NETEASE_COOKIE", calls[0]["args"])
         self.assertEqual(calls[0]["input"], "MUSIC_U=abc")          # value via stdin
         self.assertNotIn("MUSIC_U=abc", " ".join(calls[0]["args"]))  # not in argv
@@ -61,7 +63,8 @@ class SyncCookiesTest(unittest.TestCase):
 
 class AuthStatusTest(unittest.TestCase):
     def test_no_gh(self):
-        with mock.patch.object(cs.shutil, "which", return_value=None):
+        with mock.patch.object(cs.shutil, "which", return_value=None), \
+                mock.patch.object(cs.os.path, "exists", return_value=False):
             ok, detail = cs.gh_auth_status()
         self.assertFalse(ok)
         self.assertIn("gh", detail)

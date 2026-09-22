@@ -18,6 +18,16 @@ from . import proc
 SECRET_NAMES = {"netease": "NETEASE_COOKIE", "bilibili": "BILIBILI_SESSDATA"}
 
 
+def _gh_exe():
+    """Locate the ``gh`` binary (may be a user-local install not on PATH)."""
+    exe = shutil.which("gh")
+    if exe:
+        return exe
+    fallback = os.path.expanduser("~/.local/bin/gh")
+    return fallback if os.path.exists(fallback) else "gh"
+
+
+
 def _run(args, timeout=60, env=None, input=None):
     e = dict(os.environ)
     if env:
@@ -29,7 +39,8 @@ def _run(args, timeout=60, env=None, input=None):
 
 
 def gh_available():
-    return shutil.which("gh") is not None
+    exe = _gh_exe()
+    return os.path.exists(exe) or shutil.which(exe) is not None
 
 
 def gh_auth_status():
@@ -37,7 +48,7 @@ def gh_auth_status():
     if not gh_available():
         return False, "未检测到 gh CLI（请安装并执行 gh auth login）"
     try:
-        r = _run(["gh", "auth", "status"], timeout=30)
+        r = _run([_gh_exe(), "auth", "status"], timeout=30)
     except Exception as e:
         return False, f"gh 检测失败：{e}"
     if r.returncode == 0:
@@ -75,7 +86,7 @@ def set_secret(name, value, repo, token=None):
         return False, "凭证为空"
     env = {"GH_TOKEN": token} if token else None
     try:
-        r = _run(["gh", "secret", "set", name, "--repo", repo], env=env, input=value)
+        r = _run([_gh_exe(), "secret", "set", name, "--repo", repo], env=env, input=value)
     except Exception as e:
         return False, f"调用 gh 失败：{e}"
     if r.returncode == 0:
