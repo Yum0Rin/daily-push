@@ -16,6 +16,12 @@ const els = {
   cardBiliRec: $("card-bilirec"),
   cardXhs: $("card-xhs"),
   cardMp: $("card-mp"),
+  cfMusic: $("cfMusic"),
+  cfNote: $("cfNote"),
+  cfCaption: $("cfCaption"),
+  cfCounter: $("cfCounter"),
+  cfPrev: $("cfPrev"),
+  cfNext: $("cfNext"),
   emptyState: $("emptyState"),
   collectBtn: $("collectBtn"),
   collectMsg: $("collectMsg"),
@@ -120,35 +126,143 @@ function fmtCount(n, icon) {
   return `<span class="cstat">${icon} ${txt}</span>`;
 }
 
+/* ---- 网易云卡片视图（3D 景深左右切换） --------------------------------
+   变换公式参考 GitHub ikabeee/coverflow（vanilla，CSS-3D）：
+   每张卡片只暴露两个变量给 CSS —— --side(±1/0 左右侧) 与 --distance(离焦点的张数)，
+   剩下的位移 / 后撤 / 旋转 / 淡出全部由 CSS 算，JS 端不需要测量尺寸。
+   ---------------------------------------------------------------------- */
+const CF = { list: [], items: [], cur: 0, drag: { x: null, moved: false } };
+
 function renderMusic(data, hasDay) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
   const list = Array.isArray(data) ? data.filter((s) => !s.hidden) : [];
   els.cardMusic.style.display = hasDay ? "" : "none";
   if (!hasDay) return;
-  if (isErr) {
-    els.songs.innerHTML = errBlock("netease", data.error);
+  if (isErr || list.length === 0) {
+    els.cfMusic.style.display = "none";
+    els.cfNote.style.display = "";
+    els.cfNote.innerHTML = isErr
+      ? errBlock("netease", data.error)
+      : `<div class="module-note">🎵 今日暂无新推荐歌曲。</div>`;
     return;
   }
-  if (list.length === 0) {
-    els.songs.innerHTML = `<div class="module-note">🎵 今日暂无新推荐歌曲。</div>`;
-    return;
-  }
-  els.songs.innerHTML = list.map((s) => {
+  els.cfMusic.style.display = "";
+  els.cfNote.style.display = "none";
+  els.songs.innerHTML = list.map((s, i) => {
     const pic = (s.pic || "").replace(/^http:/, "https:");
+    const tag = s.url ? "a" : "div";
+    const attrs = s.url
+      ? `href="${esc(s.url)}" target="_blank" rel="noopener"` : "";
     return `
-        <li>
-          <span class="rank"></span>
-          ${pic ? `<img src="${esc(pic)}" loading="lazy" onerror="this.style.display='none'">` : ""}
-          <div class="meta">
-            <div class="title">${esc(s.name)}</div>
-            <div class="artist">${esc(s.artists)}${s.album ? " · " + esc(s.album) : ""}</div>
-            ${(s.favorite_count != null || s.comment_count != null)
-              ? `<div class="stats">${fmtCount(s.favorite_count, "❤️")}${fmtCount(s.comment_count, "💬")}</div>` : ""}
-            ${s.hot_comment ? `<div class="comment">"${esc(s.hot_comment)}"</div>` : ""}
-          </div>
-          ${s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">▶ 播放</a>` : ""}
-        </li>`;
+      <li class="cf-item">
+        <${tag} class="cf-card" ${attrs} tabindex="-1">
+          ${pic
+            ? `<img class="cf-art" src="${esc(pic)}" alt="" draggable="false" loading="lazy" onerror="this.remove()">`
+            : `<span class="cf-ph">🎵</span>`}
+          <span class="cf-num">${String(i + 1).padStart(2, "0")}</span>
+        </${tag}>
+      </li>`;
   }).join("");
+  cfSetup(list);
+}
+
+function cfSetup(list) {
+  CF.list = list;
+  CF.cur = 0;
+  CF.items = Array.prototype.slice.call(els.songs.children);
+  cfApply();
+}
+
+function cfGo(delta) {
+  cfSelect(CF.cur + delta);
+}
+
+function cfSelect(index) {
+  const n = CF.list.length;
+  if (!n) return;
+  const next = Math.max(0, Math.min(n - 1, index));
+  if (next === CF.cur) return;
+  CF.cur = next;
+  cfApply();
+}
+
+function cfApply() {
+  const n = CF.list.length;
+  CF.items.forEach((el, i) => {
+    const off = i - CF.cur;
+    el.style.setProperty("--side", Math.sign(off));
+    el.style.setProperty("--distance", Math.abs(off));
+    el.style.zIndex = String(n - Math.abs(off));
+    el.classList.toggle("is-active", off === 0);
+    const card = el.firstElementChild;
+    if (card && card.tagName === "A") card.tabIndex = off === 0 ? 0 : -1;
+  });
+  els.cfCounter.textContent = `${CF.cur + 1} / ${n}`;
+  els.cfPrev.disabled = CF.cur === 0;
+  els.cfNext.disabled = CF.cur === n - 1;
+  cfRenderCaption();
+}
+
+function cfRenderCaption() {
+  const s = CF.list[CF.cur];
+  if (!s) {
+    els.cfCaption.innerHTML = "";
+    return;
+  }
+  const stats = (s.favorite_count != null || s.comment_count != null)
+    ? `<div class="cf-stats">${fmtCount(s.favorite_count, "❤️")}${fmtCount(s.comment_count, "💬")}</div>`
+    : "";
+  els.cfCaption.innerHTML = `
+    <div class="cf-ttl"><span class="cf-rank">${CF.cur + 1}</span>${esc(s.name)}</div>
+    <div class="cf-sub">${esc(s.artists || "")}${s.album ? " · " + esc(s.album) : ""}</div>
+    ${stats}
+    ${s.hot_comment ? `<div class="cf-quote">“${esc(s.hot_comment)}”</div>` : ""}
+    ${s.url ? `<a class="cf-play" href="${esc(s.url)}" target="_blank" rel="noopener">▶ 在网易云打开</a>` : ""}`;
+  els.cfCaption.classList.remove("pulse");
+  void els.cfCaption.offsetWidth;
+  els.cfCaption.classList.add("pulse");
+}
+
+function cfBind() {
+  const root = els.cfMusic;
+  if (!root) return;
+  els.cfPrev.addEventListener("click", () => cfGo(-1));
+  els.cfNext.addEventListener("click", () => cfGo(1));
+  root.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") cfGo(-1);
+    else if (e.key === "ArrowRight") cfGo(1);
+    else return;
+    e.preventDefault();
+  });
+  root.addEventListener("click", (e) => {
+    const item = e.target.closest(".cf-item");
+    if (!item) return;
+    const i = CF.items.indexOf(item);
+    if (i < 0) return;
+    if (i === CF.cur) {
+      if (CF.drag.moved) e.preventDefault();  // 拖拽回弹不算点击
+      return;
+    }
+    e.preventDefault();  // 点两侧卡片 = 切到那张，不跳转
+    cfSelect(i);
+  });
+  // 触屏 / 鼠标横向拖拽
+  const vp = root.querySelector(".cf-viewport");
+  vp.addEventListener("pointerdown", (e) => {
+    CF.drag = { x: e.clientX, moved: false };
+  });
+  vp.addEventListener("pointermove", (e) => {
+    if (CF.drag.x === null) return;
+    if (Math.abs(e.clientX - CF.drag.x) > 12) CF.drag.moved = true;
+  });
+  const end = (e) => {
+    if (CF.drag.x === null) return;
+    const dx = e.clientX - CF.drag.x;
+    CF.drag.x = null;
+    if (Math.abs(dx) >= 45) cfGo(dx < 0 ? 1 : -1);
+  };
+  vp.addEventListener("pointerup", end);
+  vp.addEventListener("pointercancel", () => { CF.drag = { x: null, moved: false }; });
 }
 
 function renderBili(data, hasDay) {
@@ -475,6 +589,7 @@ async function init() {
   $("prevDay").addEventListener("click", () => shiftDate(-1));
   $("nextDay").addEventListener("click", () => shiftDate(1));
   buildDatePicker();
+  cfBind();
 
   if (els.collectBtn) {
     els.collectBtn.style.display = "none";

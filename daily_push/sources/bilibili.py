@@ -179,6 +179,7 @@ class BiliRecommendCollector(BiliCollector):
         self.limit = int(r.get("limit", 10))
         self.max_pages = int(r.get("max_pages", 8))
         self.interval = float(r.get("request_interval", 1.2))
+        self.time_budget = float(r.get("time_budget", 20))
 
     def _rcmd_page(self, idx):
         data = self._get(self.RCMD_URL, params={
@@ -234,7 +235,10 @@ class BiliRecommendCollector(BiliCollector):
             raise BiliError("bilibili sessdata not configured")
         exclude_urls = set(exclude_urls or ())
         out, seen = [], set()
+        deadline = time.time() + self.time_budget
         for idx in range(1, max(1, self.max_pages) + 1):
+            if time.time() >= deadline:
+                break
             for it in self._rcmd_page(idx):
                 bvid = it.get("bvid")
                 if not bvid or bvid in seen:
@@ -250,5 +254,7 @@ class BiliRecommendCollector(BiliCollector):
                 if len(out) >= self.limit:
                     return out
             if idx < self.max_pages:
-                time.sleep(self.interval)
+                remain = deadline - time.time()
+                if remain > 0:
+                    time.sleep(min(self.interval, remain))
         return out

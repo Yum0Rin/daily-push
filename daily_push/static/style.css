@@ -111,32 +111,109 @@ button.stat .value { margin-top: 4px; }
   border-radius: 14px; padding: 18px 20px; margin-bottom: 18px;
 }
 .card h2 { font-size: 15px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
-.songs {
-  margin: 0; padding: 0; list-style: none; counter-reset: song;
-  max-height: min(440px, 78vh); overflow-y: auto;  /* 内滚动：约显示前 5 首，且不超过一屏 */
+/* 网易云日推：3D 卡片视图（景深左右切换）
+   公式取自 GitHub ikabeee/coverflow：卡片只带 --side / --distance，位移·后撤·旋转·淡出全在 CSS 里算。 */
+.cf {
+  --cf-cover: clamp(150px, 40vw, 216px);
+  --cf-gap: calc(var(--cf-cover) * 0.60);
+  --cf-step: calc(var(--cf-cover) * 0.14);
+  --cf-depth: calc(var(--cf-cover) * 0.55);
+  --cf-angle: 58deg;
+  outline: none;
 }
-.songs li {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 6px; border-bottom: 1px dashed var(--border);
+.cf-viewport {
+  position: relative;
+  height: calc(var(--cf-cover) * 1.02);
+  overflow: hidden;
+  -webkit-mask: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+  mask: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
 }
-.songs li:last-child { border-bottom: none; }
-.songs .rank {
-  counter-increment: song; flex: 0 0 28px; color: var(--green-darker);
-  font-weight: 700; font-size: 16px;
+.cf-stage {
+  position: relative; height: 100%;
+  display: grid; place-items: center;
+  perspective: calc(var(--cf-cover) * 3.4);
+  perspective-origin: 50% 45%;
+  touch-action: pan-y;
 }
-.songs .rank::before { content: counter(song); }
-.songs img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
-.songs .meta { flex: 1; }
-.songs .title { font-weight: 600; }
-.songs .artist { font-size: 13px; color: var(--muted); }
-.songs .comment {
-  font-size: 13px; color: var(--muted);
-  margin-top: 2px; font-style: italic;
-  max-width: 42em;
+.cf-track {
+  position: relative; margin: 0; padding: 0; list-style: none;
+  width: var(--cf-cover); height: var(--cf-cover);
+  transform-style: preserve-3d;
 }
-.songs .stats { display: flex; gap: 10px; margin-top: 2px; font-size: 12px; color: var(--muted); }
-.songs .cstat { white-space: nowrap; }
-.songs a { text-decoration: none; color: var(--green-darker); font-size: 13px; }
+.cf-item {
+  --side: 0; --distance: 0;
+  position: absolute; inset: 0;
+  transform-style: preserve-3d;
+  transform:
+    translateX(calc(var(--side) * (var(--cf-gap) + (var(--distance) - 1) * var(--cf-step))))
+    translateZ(calc(var(--side) * var(--side) * -1 * var(--cf-depth)))
+    rotateY(calc(var(--side) * var(--cf-angle)));
+  opacity: clamp(0, calc(1 - (var(--distance) - 1) * 0.15), 1);
+  transition: transform .55s cubic-bezier(.32,.72,0,1), opacity .4s ease;
+}
+.cf-card {
+  display: block; position: relative;
+  width: 100%; height: 100%;
+  border-radius: 12px; overflow: hidden;
+  background: var(--card-2);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .28), 0 0 0 1px rgba(255, 255, 255, .05);
+  transition: box-shadow .5s cubic-bezier(.32,.72,0,1);
+}
+.cf-item.is-active .cf-card {
+  box-shadow: 0 16px 34px -10px rgba(0, 0, 0, .55), 0 0 0 1px rgba(95, 196, 176, .45);
+}
+.cf-item:not(.is-active) .cf-card::after {
+  content: ""; position: absolute; inset: 0; background: #000; opacity: .26;
+}
+.cf-art { display: block; width: 100%; height: 100%; object-fit: cover; }
+.cf-ph {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; font-size: 46px; color: var(--muted);
+}
+.cf-num {
+  position: absolute; left: 7px; top: 7px;
+  padding: 0 6px; border-radius: 7px;
+  background: rgba(0, 0, 0, .55); color: #fff;
+  font-size: 11px; font-weight: 700; line-height: 1.7; letter-spacing: .04em;
+}
+.cf-bar { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
+button.cf-nav { padding: 3px 12px; font-size: 12px; border-radius: 999px; }
+.cf-counter {
+  min-width: 56px; text-align: center;
+  font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.cf-caption {
+  min-height: 92px; margin-top: 12px; padding: 12px 14px;
+  background: var(--card-2); border: 1px solid var(--border); border-radius: 12px;
+  text-align: center;
+}
+.cf-caption.pulse { animation: cf-pulse .38s cubic-bezier(.32,.72,0,1); }
+@keyframes cf-pulse { from { opacity: .35; transform: translateY(4px); } }
+.cf-ttl {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  flex-wrap: wrap; font-size: 15px; font-weight: 700;
+}
+.cf-ttl .cf-rank {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 19px; height: 19px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+}
+.cf-sub { margin-top: 2px; font-size: 13px; color: var(--muted); }
+.cf-stats { display: flex; justify-content: center; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.cf-stats .cstat { white-space: nowrap; }
+.cf-quote {
+  margin: 8px auto 0; max-width: 46em;
+  font-size: 13px; font-style: italic; line-height: 1.5; color: var(--muted);
+}
+.cf-play {
+  display: inline-block; margin-top: 10px;
+  font-size: 13px; color: var(--green-darker); text-decoration: none;
+}
+.cf-play:hover { text-decoration: underline; }
+@media (prefers-reduced-motion: reduce) {
+  .cf-item { transition: none; }
+  .cf-caption.pulse { animation: none; }
+}
 
 .module-err {
   padding: 14px 16px; border-radius: 10px;

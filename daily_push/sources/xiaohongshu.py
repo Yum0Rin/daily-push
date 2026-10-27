@@ -157,6 +157,7 @@ class XhsCollector:
         self.max_pages = int(x.get("max_pages") or 6)
         self.interval = float(x.get("request_interval") or 2.0)
         self.detail_interval = float(x.get("detail_interval") or 1.5)
+        self.time_budget = float(x.get("time_budget") or 30)
         self.ad_keywords = [str(k) for k in (x.get("ad_keywords")
                                              if x.get("ad_keywords") is not None
                                              else DEFAULT_AD_KEYWORDS) if str(k).strip()]
@@ -298,12 +299,21 @@ class XhsCollector:
         # 合理区间校验（2001-09 ~ 2033-05），避免误解析
         return ts if 10 ** 9 < ts < 2 * 10 ** 9 else 0
 
+    def _pause(self, seconds, deadline):
+        """按剩余预算 sleep：快超时就不再等满间隔。"""
+        remain = deadline - time.time()
+        if remain > 0:
+            time.sleep(min(seconds, remain))
+
     def collect(self, exclude_urls=None):
         self.cookies()
         pushed = {m.group(1) for u in (exclude_urls or set())
                   for m in [_NOTE_ID_RE.search(str(u))] if m}
-        cursor, out, seen = "", [], set()
+        deadline = time.time() + self.time_budget
+        cursor, out, seen, stop = "", [], set(), False
         for page in range(max(1, self.max_pages)):
+            if time.time() >= deadline:
+                break
             items, cursor = self._page(cursor)
             for it in items:
                 card = it.get("note_card") or {}
@@ -319,8 +329,11 @@ class XhsCollector:
                     continue
                 collects, ratio = 0, None
                 if self.min_collect_ratio > 0:
+                    if time.time() >= deadline:
+                        stop = True
+                        break
                     info = self._detail(nid, it.get("xsec_token") or "")
-                    time.sleep(self.detail_interval)
+                    self._pause(self.detail_interval, deadline)
                     if info:
                         detail_likes = _parse_likes(info.get("liked_count"))
                         if detail_likes:
@@ -343,9 +356,10 @@ class XhsCollector:
                     "created": self._created(nid),
                 })
                 if len(out) >= self.limit:
+                    stop = True
                     break
-            if len(out) >= self.limit or not cursor:
+            if stop or not cursor:
                 break
             if page + 1 < self.max_pages:
-                time.sleep(self.interval)
+                self._pause(self.interval, deadline)
         return out

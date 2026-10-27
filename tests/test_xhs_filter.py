@@ -1,4 +1,5 @@
 """小红书采集的纯函数过滤逻辑（不联网）。"""
+import time
 import unittest
 
 from daily_push.sources.xiaohongshu import (
@@ -137,6 +138,25 @@ class CollectRatioTest(unittest.TestCase):
         out = self._run(notes, detail, min_collect_ratio=0)
         self.assertEqual(len(out), 1)
         self.assertEqual(calls, [])
+
+    def test_time_budget_exhausted_stops_early(self):
+        pages = []
+
+        def page(cursor):
+            pages.append(cursor)
+            time.sleep(0.03)
+            return [_note("6adcbeb40000000033013bff", "6000")], "next"
+
+        cfg = {"xiaohongshu": {"cookie": "web_session=x", "limit": 6,
+                               "min_collect_ratio": 0, "time_budget": 0.01,
+                               "max_pages": 4, "request_interval": 0}}
+        c = XhsCollector(cfg)
+        c._cookies = {"web_session": "x", "a1": "y"}
+        c._page = page
+        out = c.collect()
+        # 第一页拿到 1 条后预算已耗尽，不再翻第二页
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(len(out), 1)
 
 
 if __name__ == "__main__":

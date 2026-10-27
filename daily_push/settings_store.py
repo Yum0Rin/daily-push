@@ -117,6 +117,7 @@ POLICY_SPEC = {
             "min_like_ratio": _ratio,
             "limit": _int(1, 100),
             "max_pages": _int(1, 20),
+            "time_budget": _int(5, 300),
         },
     },
     "wechat": {
@@ -131,6 +132,7 @@ POLICY_SPEC = {
         "min_likes": _int(0, 100000000),
         "min_collect_ratio": _ratio,
         "max_pages": _int(1, 20),
+        "time_budget": _int(5, 300),
         "ad_keywords": _str_list,
         "exclude_keywords": _str_list,
     },
@@ -258,6 +260,7 @@ def _apply_defaults(cfg):
     rec.setdefault("min_like_ratio", 0.07)
     rec.setdefault("limit", 6)
     rec.setdefault("max_pages", 8)
+    rec.setdefault("time_budget", 20)
     cfg.setdefault("qq", {})
     cfg["qq"].setdefault("accounts", [])
     cfg["qq"].setdefault("important_groups", [])
@@ -271,7 +274,8 @@ def _apply_defaults(cfg):
     cfg["xiaohongshu"].setdefault("limit", 6)
     cfg["xiaohongshu"].setdefault("min_likes", 5000)
     cfg["xiaohongshu"].setdefault("min_collect_ratio", 0.1)
-    cfg["xiaohongshu"].setdefault("max_pages", 8)
+    cfg["xiaohongshu"].setdefault("max_pages", 4)
+    cfg["xiaohongshu"].setdefault("time_budget", 30)
     cfg.setdefault("max_songs", 5)
     cfg.setdefault("data_dir", "data")
     return cfg

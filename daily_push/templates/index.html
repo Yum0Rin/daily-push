@@ -28,7 +28,20 @@
 
   <section class="card" id="card-music" style="display:none">
     <h2>🎵 网易云日推</h2>
-    <ol class="songs" id="songs"></ol>
+    <div class="cf" id="cfMusic" tabindex="0">
+      <div class="cf-viewport">
+        <div class="cf-stage">
+          <ol class="cf-track" id="songs"></ol>
+        </div>
+      </div>
+      <div class="cf-bar">
+        <button type="button" class="ghost cf-nav" id="cfPrev" aria-label="上一首">◀</button>
+        <span class="cf-counter" id="cfCounter"></span>
+        <button type="button" class="ghost cf-nav" id="cfNext" aria-label="下一首">▶</button>
+      </div>
+      <div class="cf-caption" id="cfCaption" aria-live="polite"></div>
+    </div>
+    <div class="cf-note" id="cfNote" style="display:none"></div>
   </section>
 
   <section class="card" id="card-bili" style="display:none">
