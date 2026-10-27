@@ -8,9 +8,11 @@ const els = {
   summary: $("summary"),
   songs: $("songs"),
   ups: $("ups"),
+  xhsList: $("xhsList"),
   mpList: $("mpList"),
   cardMusic: $("card-music"),
   cardBili: $("card-bili"),
+  cardXhs: $("card-xhs"),
   cardMp: $("card-mp"),
   emptyState: $("emptyState"),
   collectBtn: $("collectBtn"),
@@ -50,6 +52,12 @@ function errMessage(kind, raw) {
     if (credential) return "B站登录凭证可能已失效，请更新 sessdata 后重新采集。";
     if (conn) return "B站接口暂时无法连接，请稍后再试。";
     return "B站动态获取失败，请稍后重试。";
+  }
+  if (kind === "xhs") {
+    if (/300011|异常|风控|verify|461/i.test(r)) return "小红书账号被风控（300011），请先在浏览器正常刷一会儿再试。";
+    if (credential) return "小红书登录态已失效，请在浏览器重新登录后再采集。";
+    if (conn) return "小红书接口暂时无法连接，请稍后再试。";
+    return "小红书推荐获取失败，请稍后重试。";
   }
   return "数据获取失败，请稍后重试。";
 }
@@ -169,6 +177,42 @@ function renderBili(data, hasDay) {
   }).join("");
 }
 
+function renderXhs(data, hasDay) {
+  const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
+  const list = Array.isArray(data) ? data.filter((n) => !n.hidden) : [];
+  els.cardXhs.style.display = hasDay ? "" : "none";
+  if (!hasDay) return;
+  if (isErr) {
+    els.xhsList.innerHTML = errBlock("xhs", data.error);
+    return;
+  }
+  if (list.length === 0) {
+    els.xhsList.innerHTML = DAYS
+      ? `<div class="module-note">📕 小红书仅在本机采集（依赖本机登录态），云端不采集，故此处为空。</div>`
+      : `<div class="module-note">📕 今日暂无 5k 赞以上的推荐。</div>`;
+    return;
+  }
+  els.xhsList.innerHTML = list.map((n) => {
+    const pic = (n.pic || "").replace(/^http:/, "https:");
+    const icon = n.kind === "video" ? "🎬" : "🖼";
+    const likes = n.likes_text || String(n.likes || "");
+    return `
+      <li class="gcard">
+        <a class="gthumb" href="${esc(n.url)}" target="_blank" rel="noopener">
+          ${pic ? `<img src="${esc(pic)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : `<span class="gthumb-ph">📕</span>`}
+          <span class="xhs-likes">♥ ${esc(likes)}</span>
+        </a>
+        <div class="ginfo">
+          <a class="gtitle" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title || "（无标题）")}</a>
+          <div class="gmeta">
+            <span class="author">${icon} ${esc(n.author)}</span>
+            ${n.created ? `<span class="time">${esc(fmtCreated(n.created))}</span>` : ""}
+          </div>
+        </div>
+      </li>`;
+  }).join("");
+}
+
 function renderArticles(data, hasDay) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
   const list = Array.isArray(data) ? data.filter((a) => !a.hidden) : [];
@@ -208,6 +252,7 @@ function render(data) {
   const hasDay = !!data;
   renderMusic(data && data.netease, hasDay);
   renderBili(data && data.bilibili, hasDay);
+  renderXhs(data && data.xhs, hasDay);
   renderArticles(data && data.mp, hasDay);
 
   // 整日无记录（未采集）→ 只显示「该日暂无推送记录」；
@@ -221,6 +266,7 @@ function renderSummary(data) {
   const n = shown(data.netease);
   const mp = shown(data.mp);
   const bili = shown(data.bilibili);
+  const xhs = shown(data.xhs);
   const stat = (target, label, val) => `
     <button class="stat" data-target="${target}"${val ? "" : " disabled"}>
       <div class="label">${label}</div><div class="value">${val}</div>
@@ -228,6 +274,7 @@ function renderSummary(data) {
   els.summary.innerHTML =
     stat("card-music", "🎵 推荐歌曲", n) +
     stat("card-bili", "👀 up动态", bili) +
+    stat("card-xhs", "📕 小红书", xhs) +
     stat("card-mp", "📰 公众号推文", mp);
 }
 
@@ -238,7 +285,8 @@ async function loadDay(date) {
   }
   const d = await api("/api/day/" + date);
   const hasRow = d && typeof d === "object"
-    && (d.netease !== undefined || d.bilibili !== undefined || d.mp !== undefined);
+    && (d.netease !== undefined || d.bilibili !== undefined || d.mp !== undefined
+        || d.xhs !== undefined);
   render(hasRow ? d : null);
 }
 

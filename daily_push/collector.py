@@ -38,7 +38,7 @@ def _save_cutoffs(storage_dir, cutoffs):
         pass
 
 
-def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
+def collect_once(config_path=None, netease=True, bilibili=True, wechat=True, xhs=True):
     cfg = load_config(config_path)
     data_dir = cfg.get("data_dir", "data")
     storage_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), data_dir)
@@ -75,6 +75,15 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
         except BiliError as e:
             result["bilibili"] = {"error": str(e)}
 
+    # Xiaohongshu recommended feed (点赞阈值 + 广告启发式过滤，只本地可采)
+    if xhs:
+        from .sources.xiaohongshu import XhsCollector, XhsError
+        pushed_xhs = storage.pushed_urls("xhs", exclude_date=today.isoformat())
+        try:
+            result["xhs"] = XhsCollector(cfg).collect(exclude_urls=pushed_xhs)
+        except XhsError as e:
+            result["xhs"] = {"error": str(e)}
+
     # WeChat official account articles (title + url)
     if wechat:
         if wechat_available():
@@ -101,6 +110,8 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
     today_str = today.isoformat()
     past = [int(v) for k, v in cutoffs.items() if k < today_str]
     threshold = max(past) if past else 0
+    # 注：小红书推荐流不按时间排序（会推几天前的老笔记），所以不做时间窗口过滤，
+    # 只靠上面的「已推 note id」跨天去重；created 仅用于页面显示发布时间。
     for field, tkey in (("bilibili", "created"), ("mp", "timestamp")):
         val = result.get(field)
         if isinstance(val, list):
@@ -113,7 +124,8 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True):
     storage.save(today.isoformat(),
                  netease=result.get("netease"),
                  bilibili=result.get("bilibili"),
-                 mp=result.get("mp"))
+                 mp=result.get("mp"),
+                 xhs=result.get("xhs"))
     storage.close()
     return result
 

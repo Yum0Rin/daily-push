@@ -41,10 +41,11 @@
 - 策略：`push_time`(HH:MM，兼容保留，本地已不定时)、`max_songs`、
   `netease.{max_comments,max_favorites,reserve}`、
   `bilibili.{exclude,recent_days,max_videos,feed_pages,reserve}`、
-  `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour,reserve}`。
+  `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour,reserve}`、
+  `xiaohongshu.{min_likes,max_pages,ad_keywords,exclude_keywords}`。
 - 数量上限 `max_songs` / `max_videos` / `max_articles` 为 **0 表示不限**（只影响之后采集，不改历史）。
 - 密钥：`netease.{mode,cookie,base_url}`、`bilibili.sessdata`、`email.*`、`site.*`、
-  `xiaohongshu.*`、`port`、`data_dir`。
+  `xiaohongshu.{cookie,limit}`、`port`、`data_dir`。
 
 ### 写入安全
 

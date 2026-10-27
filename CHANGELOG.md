@@ -3,6 +3,40 @@
 > 本项目无正式版本号，按日期记录重要变更，**最新在上**。
 > 更细的设计见 [docs/](docs/README.md)，当前能力与已知问题见 [docs/status.md](docs/status.md)。
 
+## 2026-10-27
+
+### 新增
+- **小红书推荐流接入**（`daily_push/sources/xiaohongshu.py`，恢复 8 月因风控暂停的源）。
+  - 走 PC 网页 `POST /api/sns/web/v1/homefeed`（`category=homefeed_recommend`），20 条/页、`cursor_score` 翻页。
+  - 签名用纯 Python 的 `xhshow` 生成 `x-s / x-t / x-s-common`（不再需要浏览器执行 JS）；
+    8 月那次账号风控 `300011` 已解除，实测 `code 0`。
+  - 登录态：优先 `config.json` 的 `xiaohongshu.cookie`，否则**只读**读本机 Firefox 的 `cookies.sqlite`
+    （`mode=ro&immutable=1`）。Chrome 127+ Cookie 是 App-Bound 加密，进程外解不开，故不支持。
+  - 筛选：点赞 ≥ `min_likes`（默认 5000），默认返回 `limit=10` 条；标题/作者命中广告关键词即丢弃。
+  - 时间戳从笔记 ID 前 8 位十六进制解析（`created`），仅用于显示——推荐流会推老笔记，**不套时间窗口**。
+  - 推送页新增「📕 小红书推荐」卡片：3:4 竖图 + 右下角点赞角标 + 作者 + 发布时间；汇总栏加一项。
+- `tools/cloud_collect.py`：云端采集显式 `xhs=False`（依赖本机登录态，云端采不了）。
+- `export_site._merge_published()`：已存在的日期也补**缺失字段**（mp / xhs），
+  避免云端每天导出一次就把本地采到的小红书/公众号数据从已发布页面上抹掉。
+
+### 变更
+- `storage.py`：新增 `xhs` 列（老库自动 `ALTER TABLE` 迁移）。
+- `collector.py`：`collect_once(..., xhs=True)`，跨天去重按已推 note id。
+- `settings_store.py`：`xiaohongshu` 拆成策略（`min_likes/max_pages/ad_keywords/exclude_keywords`，
+  写 `settings.json`）+ 密钥（`cookie/limit`，写 `config.json`）；`_SECRET_ROOTS` 移除整个
+  `xiaohongshu` 根，改为只屏蔽 `cookie` 叶子。
+- `requirements.txt`：新增 `xhshow>=0.2`。
+
+### 已知限制
+- **广告判定是启发式**：推荐流返回的 `note_card` 只有 cover/type/title/user/interact_info，
+  没有广告/赞助标记，只能靠标题+作者关键词过滤，会漏判和误杀。
+- 云端不采小红书，静态站上云端采集的日期会显示「仅本机采集」。
+
+### 验证
+- 实测 4 页 79 条中 ≥5k 赞 13 条；接入后单次采集 10 条全部 ≥5k。
+- 静态页导出后无头 Chrome 截图确认：卡片、封面、点赞角标、汇总统计均正常。
+- 单元测试 71 项，1 项失败（`test_cloud_secrets` 的 `gh.EXE` vs `gh`，Windows 既有问题，与本次无关）。
+
 ## 2026-09-22
 
 ### 新增

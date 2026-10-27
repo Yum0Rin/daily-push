@@ -65,6 +65,7 @@ def _seed_published(storage, days):
             netease=fields.get("netease"),
             bilibili=fields.get("bilibili"),
             mp=fields.get("mp"),
+            xhs=fields.get("xhs"),
         )
 
 
@@ -76,7 +77,9 @@ def main():
     _seed_published(storage, _published_days())
     storage.close()
 
-    r = collect_once(netease=True, bilibili=True, wechat=False)
+    # 小红书依赖本机浏览器登录态，云端不采集（已发布的本地数据由 export 的
+    # merge_remote 保留，不会被云端的空值覆盖）。
+    r = collect_once(netease=True, bilibili=True, wechat=False, xhs=False)
     errs = {k: v.get("error") for k, v in r.items()
             if isinstance(v, dict) and "error" in v}
     print("collect errors:", errs)

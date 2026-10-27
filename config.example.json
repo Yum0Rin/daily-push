@@ -19,8 +19,8 @@
     "mp_cutoff_hour": 18
   },
   "xiaohongshu": {
-    "cookie": "web_session=<你的Cookie>",
-    "limit": 5
+    "cookie": "",
+    "limit": 10
   },
   "push_time": "07:30",
   "max_songs": 5,

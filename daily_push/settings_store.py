@@ -112,6 +112,12 @@ POLICY_SPEC = {
         "mp_cutoff_hour": _int(0, 23),
         "reserve": _int(0, 20),
     },
+    "xiaohongshu": {
+        "min_likes": _int(0, 100000000),
+        "max_pages": _int(1, 20),
+        "ad_keywords": _str_list,
+        "exclude_keywords": _str_list,
+    },
 }
 
 # Editable credentials / machine settings -> written to config.json (gitignored).
@@ -138,12 +144,13 @@ SECRET_SPEC = {
     "data_dir": _str,
 }
 
-_SECRET_ROOTS = {"email", "site", "port", "data_dir", "xiaohongshu"}
+_SECRET_ROOTS = {"email", "site", "port", "data_dir"}
 _SECRET_LEAVES = {
     ("netease", "cookie"),
     ("netease", "mode"),
     ("netease", "base_url"),
     ("bilibili", "sessdata"),
+    ("xiaohongshu", "cookie"),
 }
 
 
@@ -238,6 +245,10 @@ def _apply_defaults(cfg):
     cfg["wechat"].setdefault("important_groups", [])
     cfg["wechat"].setdefault("top_groups", 3)
     cfg["wechat"].setdefault("max_per_group", 5)
+    cfg.setdefault("xiaohongshu", {})
+    cfg["xiaohongshu"].setdefault("limit", 10)
+    cfg["xiaohongshu"].setdefault("min_likes", 5000)
+    cfg["xiaohongshu"].setdefault("max_pages", 6)
     cfg.setdefault("max_songs", 5)
     cfg.setdefault("data_dir", "data")
     return cfg

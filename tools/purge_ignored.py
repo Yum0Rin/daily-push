@@ -57,9 +57,12 @@ def purge(storage, cfg):
                 row["mp"] = promote_reserve(kept, max_articles)
                 changed = True
         if changed:
+            # overwrite=True 会把没传的字段写成 None，所以小红书必须显式带上，
+            # 否则每次「保存并应用屏蔽名单」都会把当天的小红书数据抹掉。
             storage.save(d, netease=row.get("netease"),
                          bilibili=row.get("bilibili") or None,
                          mp=row.get("mp") or None,
+                         xhs=row.get("xhs") or None,
                          overwrite=True)
     return removed
 

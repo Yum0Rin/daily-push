@@ -190,6 +190,15 @@ button.stat .value { margin-top: 4px; }
 .cardgrid.mp { grid-template-columns: 1fr; }
 @media (min-width: 620px) { .cardgrid.mp { grid-template-columns: repeat(2, 1fr); } }
 .cardgrid.mp .gthumb { aspect-ratio: 2.35 / 1; }
+/* 小红书：竖图 3:4，封面右下角叠点赞数 */
+.cardgrid.xhs .gthumb { aspect-ratio: 3 / 4; position: relative; }
+.cardgrid.xhs .gtitle { min-height: 2.8em; }
+.cardgrid .xhs-likes {
+  position: absolute; right: 6px; bottom: 6px;
+  padding: 1px 7px; border-radius: 20px;
+  background: rgba(0, 0, 0, .55); color: #fff;
+  font-size: 11px; line-height: 1.6; letter-spacing: .02em;
+}
 /* 公众号标题固定两行：单行也占两行高，超出显示省略号 */
 .cardgrid.mp .gtitle { min-height: 2.8em; }
 .cardgrid .ginfo { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 4px; }

@@ -51,15 +51,23 @@ def _published_days_from_remote(cfg):
 def _merge_published(storage, days):
     """Write published days into local DB so export keeps full history.
 
-    只补「本地缺失的日期」，不覆盖本地已有的（本地可能更全，如本地采集的 mp）。
+    只补「本地缺失的日期」与「本地缺失的字段」：本地可能更全（如本地采集的 mp /
+    小红书），而云端采集不到这两块——不补字段的话，云端每天导出一次就会把它们
+    从已发布页面上抹掉。
     """
     for d, fields in days.items():
-        if storage.has(d):
-            continue
         if not isinstance(fields, dict):
             continue
+        if storage.has(d):
+            row = storage.get(d) or {}
+            patch = {k: fields.get(k) for k in ("mp", "xhs")
+                     if not row.get(k) and fields.get(k)}
+            if patch:
+                storage.save(d, **patch)
+            continue
         storage.save(d, netease=fields.get("netease"),
-                     bilibili=fields.get("bilibili"), mp=fields.get("mp"))
+                     bilibili=fields.get("bilibili"), mp=fields.get("mp"),
+                     xhs=fields.get("xhs"))
 
 
 def merge_remote_history(storage, cfg):
@@ -86,7 +94,7 @@ def export_site(config_path=None, merge_remote=True):
     for d in storage.list_dates():
         row = storage.get(d)
         if row:
-            days[d] = {k: row.get(k) for k in ("netease", "bilibili", "mp")}
+            days[d] = {k: row.get(k) for k in ("netease", "bilibili", "mp", "xhs")}
     storage.close()
 
     with open(os.path.join(BASE_DIR, "templates", "index.html"), encoding="utf-8") as f:

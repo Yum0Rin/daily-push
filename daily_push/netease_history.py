@@ -60,5 +60,6 @@ def apply_history(storage, max_comments, max_favorites=0, stats_lookup=None,
             promote_reserve(kept, shown_target)
             storage.save(d, netease=kept or None,
                          bilibili=row.get("bilibili"),
-                         mp=row.get("mp"), overwrite=True)
+                         mp=row.get("mp"),
+                         xhs=row.get("xhs"), overwrite=True)
     return {"backfilled": backfilled, "removed": removed}

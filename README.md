@@ -1,7 +1,9 @@
 # daily-push · 每日推送聚合器
 
-多平台每日信息自动聚合：**网易云日推 Top5（含热评）** + **B站关注 UP 动态** + **微信公众号推文**。
+多平台每日信息自动聚合：**网易云日推 Top5（含热评）** + **B站关注 UP 动态** + **小红书推荐（5k 赞以上）** + **微信公众号推文**。
 采集结果写入 SQLite，本地通过 Flask 网页查看，并自动导出静态页推送到 GitHub Pages，手机随时可看。
+
+> **小红书**：只在本机采集（复用本机浏览器登录态），云端 Actions 不采；页面在云端为空时会显示「仅本机采集」。
 
 > **运行方式**：云端每天 07:30 自动采集并发布 Pages；本地**无常驻**——登录时一次性采集并推送
 > （`tools/run_daily.py`），本地网页**按需启停**（开始菜单「每日推送」打开、设置页「停止本地服务」关闭），
@@ -69,6 +71,7 @@ daily-push/
 │   └── sources/
 │       ├── netease.py           # 网易云日推采集器
 │       ├── bilibili.py          # B站关注动态采集器
+│       ├── xiaohongshu.py       # 小红书推荐流采集器（点赞阈值 + 广告启发式）
 │       └── wechat_article.py    # 公众号推文采集器
 ├── tools/
 │   ├── make_cloud_config.py     # 云端用 secrets 生成 config.json
@@ -81,8 +84,8 @@ daily-push/
 │   ├── open_dashboard.py        # 一键打开本地网页（没起则先启动 start.py）
 │   ├── create_shortcut.py       # 生成开始菜单快捷方式（指向 open_dashboard.py）
 │   ├── install_linux.py         # Linux 桌面集成：systemd 用户服务 + 应用菜单入口（幂等/可卸载）
-│   ├── xhs_console.txt          # 小红书签名调研备忘（未启用）
-│   └── xhs_capture.txt          # 小红书请求头捕获脚本（未启用）
+│   ├── xhs_console.txt          # 小红书签名调研备忘（留档，采集已改走 xhshow）
+│   └── xhs_capture.txt          # 小红书请求头捕获脚本（留档）
 ├── tests/                       # 单元测试（标准库 unittest，零新依赖）
 │   ├── test_settings_store.py   # 配置分层/校验/原子写/备份/打码
 │   ├── test_settings_api.py     # 设置页接口与鉴权
@@ -220,6 +223,23 @@ npm install                                                          # Node：Ne
 详见 [docs/linux.md](docs/linux.md)（含与 Windows 的差异、平台适配改动、微信不可用的说明）。
 
 > 详见 [docs/](docs/README.md)，尤其 [配置与隐私](docs/config-privacy.md)：`config.json`、`data/`、`*.log` 均已 gitignore，请勿提交 Cookie 等敏感信息。
+
+### 日志与备份（2026-10-22）
+
+本项目**不自带**轮转/备份逻辑，与 wecom-rin 共用同一个运维脚本：
+`C:\Users\39007\.local\ops\housekeeping.ps1`，由计划任务 **`Rin Housekeeping`** 每天 **04:00** 执行。
+
+| 项 | 规则 |
+|---|---|
+| `start_out.log` | >10MB 轮转（Flask 网页运行期间被 `pythonw` 句柄占用会跳过，等服务关掉后自动轮转） |
+| 其余 `*.log`（`run_daily` / `netease` / `server` / `debug` / `local_run`） | >5MB 轮转 |
+| 归档 | `logs/<名>.<时间戳>.log.gz`，保留 30 天（`logs/` 已 gitignore） |
+| 每日备份 | `E:\Backups\rin\<yyyy-MM-dd>.zip`，保留 14 份 |
+
+- 备份内容：`data/daily.db`（走 SQLite `backup` API，不是裸拷）、`config.json`、`settings.json`、`data/*.json`。源码在 git 里，不重复备份。
+- **`config.json` 含 Cookie / 密钥，`E:\Backups` 不要外发或同步到公开网盘。**
+- 本项目是**登录时一次性采集**（`Startup\DailyPush.vbs` → `tools/run_daily.py`，跑完即退出），所以平时进程列表里看不到它，属正常；`start_out.log` 只有手动开过 Flask 网页（`start.py`）才会有新内容。
+- 手动执行：`pwsh -NoProfile -File <脚本> -DryRun | -SkipBackup | -SkipRotate`。
 
 ---
 

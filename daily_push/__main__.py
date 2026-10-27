@@ -12,10 +12,11 @@ def main():
     netease = "--no-netease" not in sys.argv
     bilibili = "--no-bilibili" not in sys.argv
     wechat = "--no-wechat" not in sys.argv
-    result = collect_once(netease=netease, bilibili=bilibili, wechat=wechat)
+    xhs = "--no-xhs" not in sys.argv
+    result = collect_once(netease=netease, bilibili=bilibili, wechat=wechat, xhs=xhs)
     print("=" * 40)
     print("saved push_date:", result.get("push_date"))
-    for k in ("netease", "bilibili", "mp"):
+    for k in ("netease", "bilibili", "xhs", "mp"):
         if k in result:
             item = result[k]
             if isinstance(item, dict) and "error" in item:

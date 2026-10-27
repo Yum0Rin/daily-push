@@ -107,21 +107,53 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 - `notify_keywords`：标题命中即标记为通知类并排到列表下方，默认覆盖取餐/优惠券/快递等常见服务通知。
 仅保存标题+链接+作者，不存正文。
 
-## 小红书 → 已暂停（仅存档调研备忘）
+## 小红书推荐流 (sources/xiaohongshu.py) → `xhs` 字段
 
-`sources/xiaohongshu.py` 已删除，无采集模块。仅 `tools/xhs_console.txt` / `xhs_capture.txt`
-保留当时的签名调研备忘，若日后重试可参考。**当前未接通。** 已摸清签名方案，但：
+数组，每项：
+```json
+{
+  "id": "6adcbeb40000000033013bff",
+  "title": "……降这么多那别人之前的努力算什么",
+  "url": "https://www.xiaohongshu.com/explore/<id>?xsec_token=<token>&xsec_source=pc_feed",
+  "author": "辰羽",
+  "likes": 31000,               // 由 "3.1万" 换算出的整数
+  "likes_text": "3.1万",        // 原始文案，前端直接显示
+  "kind": "normal",             // normal=图文 / video=视频
+  "pic": "封面 URL（取 cover.info_list 的 FD_PRV_WEBP）",
+  "created": 1792659920         // 笔记 ID 前 8 位十六进制 = 发布时间戳
+}
+```
 
-- 关注流 `homefeed_follow` 与推荐流 `homefeed_recommend` 均返回
-  `code 300011「当前账号存在异常，请切换账号后重试」` —— 账号被风控。
-- 用户决定**暂停**。若日后重试，先用 `tools/xhs_console.txt` 在浏览器验证，
-  注意控制频率避免封号。
+数据来自 PC 网页推荐流 `POST /api/sns/web/v1/homefeed`（`category=homefeed_recommend`），
+20 条/页，`cursor_score` 翻页。请求需三个签名头 `x-s / x-t / x-s-common`，
+由纯 Python 的 [`xhshow`](https://pypi.org/project/xhshow/) 生成（**不再依赖浏览器执行 JS**）。
 
-### 小红书签名备忘（后续可用）
+登录态来源（按顺序）：
+1. `config.json` 的 `xiaohongshu.cookie`（完整 Cookie 串，需含 `web_session=`）；
+2. 本机 **Firefox** 配置目录里已登录的小红书 Cookie —— 只读打开 `cookies.sqlite`
+   （`mode=ro&immutable=1`），不复制文件、不外传。
 
-- 需三个头：`x-s` / `x-t` / `x-s-common`，均由页面 `window._webmsxyw(path, params)`
-  与 localStorage `b1`、cookie `a1` 组合生成。
-- 纯 Python 的 pip `xhs` 库内建签名算法**已过时**（signType x2 / svn 56 是新版），
-  直接调不通；必须以浏览器页面签名或本地执行新版 JS 为准。
-- 方案：浏览器 Console 里 `window._webmsxyw` 签名 + fetch 请求（见
-  `tools/xhs_console.txt`），或之后引入 `GenXsAndCommon_56.js` 类脚本在本地跑。
+> 只支持 Firefox 自动读取：Chrome 127+ 的 Cookie 是 App-Bound 加密，进程外无法解密。
+
+筛选与配置：
+- `xiaohongshu.min_likes`（策略，默认 5000）：点赞数下限。
+- `xiaohongshu.limit`（config，默认 10）：返回条数。
+- `xiaohongshu.max_pages`（策略，默认 6）：最多翻几页（凑不够就返回实际条数）。
+- `xiaohongshu.ad_keywords`（策略，默认见模块内 `DEFAULT_AD_KEYWORDS`）：命中标题或作者即丢弃。
+- `xiaohongshu.exclude_keywords`（策略）：额外屏蔽词，命中标题或作者即丢弃。
+- 每次翻页间隔 `request_interval`（默认 2 秒），失败重试 1 次。
+
+**广告判定是启发式**：推荐流返回的 `note_card` 只有 `cover / type / display_title / user /
+interact_info`，**没有任何广告/赞助标记**（网页上的「赞助」角标不在此接口里），
+所以只能靠标题+作者关键词过滤，会有漏判和误杀。要精确判定需逐条调笔记详情接口，
+请求量 ×20，风控风险不值得。
+
+**不按时间过滤**：推荐流会推几天前的老笔记，因此不套 `created` 时间窗口，
+跨天去重靠「已推过的 note id」（从历史 URL 里提取）。
+
+### 历史：8 月风控暂停 → 10 月恢复
+
+2026-08 曾接通关注流/推荐流但账号被风控（`code 300011 当前账号存在异常`），
+`sources/xiaohongshu.py` 被删除、只留 `tools/xhs_console.txt` 调研备忘。
+2026-10-27 重新验证：`xhshow` 签名 + 本机登录态均可用，推荐流 `code 0` 正常返回，
+账号风控已解除，故恢复接入。若再次遇到 300011，**停几天、别连续重试**。

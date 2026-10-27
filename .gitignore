@@ -12,6 +12,8 @@ site/
 
 # 运行日志（可能含 URL/路径等细节）
 *.log
+# 轮转归档（housekeeping.ps1 生成）
+logs/
 
 # ===== 环境 / 缓存 =====
 __pycache__/
@@ -35,6 +37,9 @@ Thumbs.db
 # ===== 开发工具脚本（可留本地，视需求）=====
 tools/xhs_console.txt
 tools/xhs_capture.txt
+
+# ===== 改动前快照（只存档，不参与交付）=====
+历史版本/
 
 # ===== AI 本地笔记（给助手自己看，不入库）=====
 AGENTS.md
