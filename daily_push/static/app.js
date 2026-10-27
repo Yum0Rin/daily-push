@@ -213,6 +213,7 @@ function renderXhs(data, hasDay) {
           <a class="gtitle" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title || "（无标题）")}</a>
           <div class="gmeta">
             <span class="author">${icon} ${esc(n.author)}</span>
+            ${n.collects ? `<span class="xhs-collect" title="收藏 / 点赞 = ${n.collect_ratio == null ? "?" : Math.round(n.collect_ratio * 100) + "%"}">⭐ ${esc(fmtViews(n.collects))}</span>` : ""}
             ${n.created ? `<span class="time">${esc(fmtCreated(n.created))}</span>` : ""}
           </div>
         </div>

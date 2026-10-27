@@ -76,5 +76,68 @@ class CoverTest(unittest.TestCase):
         self.assertEqual(XhsCollector._cover({}), "")
 
 
+def _note(nid, likes, title="普通笔记", author="作者"):
+    return {
+        "id": nid,
+        "xsec_token": "tok",
+        "note_card": {
+            "display_title": title,
+            "user": {"nickname": author},
+            "interact_info": {"liked_count": likes},
+            "type": "normal",
+            "cover": {"url": "http://a/b.jpg"},
+        },
+    }
+
+
+class CollectRatioTest(unittest.TestCase):
+    """藏/赞比过滤（详情接口用桩替换，不联网）。"""
+
+    def _run(self, notes, detail, **over):
+        cfg = {"xiaohongshu": {"cookie": "web_session=x", "limit": 10,
+                               "detail_interval": 0}}
+        cfg["xiaohongshu"].update(over)
+        c = XhsCollector(cfg)
+        c._cookies = {"web_session": "x", "a1": "y"}
+        c._page = lambda cursor: (notes, "")
+        c._detail = detail
+        return c.collect()
+
+    def test_below_ratio_dropped(self):
+        notes = [_note("6adcbeb40000000033013bff", "6000")]
+        out = self._run(notes, lambda nid, tok: {"liked_count": "6000",
+                                                 "collected_count": "120"},
+                        min_collect_ratio=0.04)  # 0.02 < 0.04
+        self.assertEqual(out, [])
+
+    def test_above_ratio_kept_with_fields(self):
+        notes = [_note("6adcbeb40000000033013bff", "6000")]
+        out = self._run(notes, lambda nid, tok: {"liked_count": "8000",
+                                                 "collected_count": "800"},
+                        min_collect_ratio=0.04)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]["collects"], 800)
+        self.assertAlmostEqual(out[0]["collect_ratio"], 0.1)
+        self.assertEqual(out[0]["likes"], 8000)  # 以详情为准
+
+    def test_detail_failure_keeps_note(self):
+        notes = [_note("6adcbeb40000000033013bff", "6000")]
+        out = self._run(notes, lambda nid, tok: None, min_collect_ratio=0.04)
+        self.assertEqual(len(out), 1)
+        self.assertIsNone(out[0]["collect_ratio"])
+
+    def test_zero_threshold_skips_detail(self):
+        calls = []
+        notes = [_note("6adcbeb40000000033013bff", "6000")]
+
+        def detail(nid, tok):
+            calls.append(nid)
+            return {"liked_count": "6000", "collected_count": "1"}
+
+        out = self._run(notes, detail, min_collect_ratio=0)
+        self.assertEqual(len(out), 1)
+        self.assertEqual(calls, [])
+
+
 if __name__ == "__main__":
     unittest.main()

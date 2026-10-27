@@ -8,6 +8,12 @@
 
 注意：推荐流返回的 ``note_card`` 只有 cover/type/display_title/user/interact_info，
 **没有广告标记**，所以「非推广/广告」只能靠标题+作者关键词启发式，会漏判/误杀。
+
+小红书**不对外提供浏览量**（推荐流与笔记详情接口都没有 view/play 字段，只有作者
+自己在创作中心能看到），所以做不了 B站 那种「点赞/播放」比例。替代方案是按笔记
+详情里的收藏数算「藏/赞比」：收藏相对点赞越高，说明内容越有留存价值（干货型），
+纯情绪/娱乐内容这个比值很低。取收藏需要逐条调详情接口（一条候选一次请求），
+因此只在候选已过点赞阈值后才查，并且 ``min_collect_ratio=0`` 时完全关闭。
 """
 import glob
 import os
@@ -19,6 +25,7 @@ import requests
 
 API_HOST = "https://edith.xiaohongshu.com"
 FEED_URI = "/api/sns/web/v1/homefeed"
+DETAIL_URI = "/api/sns/web/v1/feed"
 NOTE_URL = "https://www.xiaohongshu.com/explore/{note_id}?xsec_token={token}&xsec_source=pc_feed"
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) "
@@ -146,8 +153,10 @@ class XhsCollector:
         self.cookie_str = str(x.get("cookie") or "").strip()
         self.limit = int(x.get("limit") or 10)
         self.min_likes = int(x.get("min_likes") or 5000)
+        self.min_collect_ratio = float(x.get("min_collect_ratio") or 0)
         self.max_pages = int(x.get("max_pages") or 6)
         self.interval = float(x.get("request_interval") or 2.0)
+        self.detail_interval = float(x.get("detail_interval") or 1.5)
         self.ad_keywords = [str(k) for k in (x.get("ad_keywords")
                                              if x.get("ad_keywords") is not None
                                              else DEFAULT_AD_KEYWORDS) if str(k).strip()]
@@ -219,6 +228,42 @@ class XhsCollector:
             return body.get("items") or [], body.get("cursor_score") or ""
         raise last or XhsError("请求失败")
 
+    def _detail(self, note_id, xsec_token):
+        """取笔记详情里的 ``interact_info``（收藏/评论/转发数）。
+
+        失败返回 ``None``：调用方按「比例未知」放行，不因单条请求失败就丢内容。
+        """
+        payload = {
+            "source_note_id": note_id,
+            "image_formats": ["jpg", "webp", "avif"],
+            "extra": {"need_body_topic": "1"},
+            "xsec_source": "pc_feed",
+            "xsec_token": xsec_token or "",
+        }
+        headers = {
+            "User-Agent": _UA,
+            "Content-Type": "application/json;charset=UTF-8",
+            "Accept": "application/json, text/plain, */*",
+            "Origin": "https://www.xiaohongshu.com",
+            "Referer": "https://www.xiaohongshu.com/explore",
+        }
+        try:
+            headers.update(self._signer.sign_headers_post(DETAIL_URI, self.cookies(),
+                                                          payload=payload))
+            r = self.session.post(API_HOST + DETAIL_URI, json=payload, headers=headers,
+                                  cookies=self.cookies(), timeout=20)
+            if r.status_code != 200:
+                return None
+            data = r.json()
+        except Exception:
+            return None
+        if data.get("code") != 0:
+            return None
+        items = (data.get("data") or {}).get("items") or []
+        if not items:
+            return None
+        return ((items[0] or {}).get("note_card") or {}).get("interact_info") or None
+
     # ---- filtering ----
     def _is_dropped(self, title, author):
         text = f"{title} {author}"
@@ -269,15 +314,30 @@ class XhsCollector:
                 title = (card.get("display_title") or "").strip()
                 author = ((card.get("user") or {}).get("nickname") or "").strip()
                 likes = _parse_likes((card.get("interact_info") or {}).get("liked_count"))
+                likes_text = str((card.get("interact_info") or {}).get("liked_count") or "")
                 if likes < self.min_likes or self._is_dropped(title, author):
                     continue
+                collects, ratio = 0, None
+                if self.min_collect_ratio > 0:
+                    info = self._detail(nid, it.get("xsec_token") or "")
+                    time.sleep(self.detail_interval)
+                    if info:
+                        detail_likes = _parse_likes(info.get("liked_count"))
+                        if detail_likes:
+                            likes, likes_text = detail_likes, str(info.get("liked_count"))
+                        collects = _parse_likes(info.get("collected_count"))
+                        ratio = collects / likes if likes else 0.0
+                        if ratio < self.min_collect_ratio:
+                            continue
                 out.append({
                     "id": nid,
                     "title": title,
                     "url": NOTE_URL.format(note_id=nid, token=it.get("xsec_token") or ""),
                     "author": author,
                     "likes": likes,
-                    "likes_text": str((card.get("interact_info") or {}).get("liked_count") or ""),
+                    "likes_text": likes_text,
+                    "collects": collects,
+                    "collect_ratio": round(ratio, 4) if ratio is not None else None,
                     "kind": card.get("type") or "normal",
                     "pic": self._cover(card),
                     "created": self._created(nid),

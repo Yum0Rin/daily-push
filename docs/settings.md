@@ -43,8 +43,10 @@
   `bilibili.{exclude,recent_days,max_videos,feed_pages,reserve}`、
   `bilibili.recommend.{min_views,min_like_ratio,limit,max_pages}`、
   `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour,reserve}`、
-  `xiaohongshu.{min_likes,max_pages,ad_keywords,exclude_keywords}`。
+  `xiaohongshu.{min_likes,min_collect_ratio,max_pages,ad_keywords,exclude_keywords}`。
 - 数量上限 `max_songs` / `max_videos` / `max_articles` 为 **0 表示不限**（只影响之后采集，不改历史）。
+- `xiaohongshu.min_collect_ratio` 为**藏/赞比**下限（默认 0.04，`0` 关闭）：
+  小红书接口不返回浏览量，只能用收藏/点赞作质量代理，开启后每条候选多一次详情请求。
 - 密钥：`netease.{mode,cookie,base_url}`、`bilibili.sessdata`、`email.*`、`site.*`、
   `xiaohongshu.{cookie,limit}`、`port`、`data_dir`。
 

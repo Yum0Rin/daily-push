@@ -1,6 +1,6 @@
 # daily-push · 每日推送聚合器
 
-多平台每日信息自动聚合：**网易云日推 Top5（含热评）** + **B站关注 UP 动态** + **B站首页推荐（未关注）** + **小红书推荐（5k 赞以上）** + **微信公众号推文**。
+多平台每日信息自动聚合：**网易云日推 Top5（含热评）** + **B站关注 UP 动态** + **B站首页推荐（未关注）** + **小红书推荐（5k 赞以上 + 藏赞比）** + **微信公众号推文**。
 采集结果写入 SQLite，本地通过 Flask 网页查看，并自动导出静态页推送到 GitHub Pages，手机随时可看。
 
 > **小红书**：本地优先读 Firefox 登录态，云端走 GitHub Secret `XHS_COOKIE`（整段 Cookie，含 `a1` + `web_session`）。
@@ -73,7 +73,7 @@ daily-push/
 │   └── sources/
 │       ├── netease.py           # 网易云日推采集器
 │       ├── bilibili.py          # B站采集器（关注动态 + 首页推荐 BiliRecommendCollector）
-│       ├── xiaohongshu.py       # 小红书推荐流采集器（点赞阈值 + 广告启发式）
+│       ├── xiaohongshu.py       # 小红书推荐流采集器（点赞阈值 + 藏赞比 + 广告启发式）
 │       └── wechat_article.py    # 公众号推文采集器
 ├── tools/
 │   ├── make_cloud_config.py     # 云端用 secrets 生成 config.json
@@ -260,8 +260,8 @@ npm install                                                          # Node：Ne
 - ✅ 本地无常驻：登录时一次性采集（`tools/run_daily.py`）后退出；Flask 网页**按需启停**（开始菜单「每日推送」打开，设置页「停止本地服务」关闭）；网易云代理**懒加载**（仅网易云操作期间，引用计数自动开关）；采集/清理/推送用跨进程文件锁串行化。
 - ✅ 跨平台本地：Windows 与 Linux 皆可跑本地部分——Windows 用启动项 + 开始菜单，Linux 用 `tools/install_linux.py`（systemd 用户服务 + 应用菜单）。Linux 无微信解密环境，**公众号源自动静默跳过**（不影响其余采集与推送）。
 - ✅ 设置页：运行状态（含「手动推送」「停止本地服务」）、配置备份/还原、安全响应头、ⓘ 悬停引导。
-- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 71 项）。
-- ⛔ 小红书已暂停（接口被风控 `300011`，签名已摸清但账号被标记，见 `docs/sources/README.md`）。
+- ✅ 单元测试：`python -m unittest discover -s tests -t .`（标准库，零新依赖，共 97 项）。
+- ⚠️ 小红书接口**不返回浏览量**，只能按「藏/赞比」筛（逐条查详情，单次采集约 28 秒）；广告仍靠关键词启发式（见 `docs/sources/README.md`）。
 - 网易云只提供官网歌曲页链接（`orpheus://` 客户端协议本机无法唤起）。
 - 公众号采集依赖本机微信解密环境，云端不采集 mp（但本地 mp 会在推送时随站点合并保留）。
 

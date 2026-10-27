@@ -224,6 +224,7 @@ button.stat .value { margin-top: 4px; }
 .cardgrid .gtitle:hover { color: var(--accent-2); }
 .cardgrid .gmeta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
 .cardgrid .gmeta .author { color: var(--green-deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cardgrid .gmeta .xhs-collect { margin-left: auto; color: var(--muted); white-space: nowrap; }
 .cardgrid > .module-note, .cardgrid > .module-err { grid-column: 1 / -1; }
 
 .empty { text-align: center; color: var(--muted); padding: 40px; }

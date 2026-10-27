@@ -5,6 +5,19 @@
 
 ## 2026-10-27
 
+### 新增（同日第三批）：小红书「藏/赞比」筛选
+- **小红书不提供浏览量**：推荐流与笔记详情接口都没有 `view/play` 字段（只有作者在创作中心能看到），
+  所以做不了 B站 那种「点赞/播放」。改用详情接口的收藏数算 **藏/赞比** 作质量代理。
+- `sources/xiaohongshu.py`：新增 `_detail()`（`POST /api/sns/web/v1/feed`，签名同推荐流），
+  只对**已过点赞阈值**的候选查一次详情，按 `collected_count / liked_count` 过滤；
+  详情失败按「比例未知」**放行**（不因一次请求失败丢内容）。
+- 新策略 `xiaohongshu.min_collect_ratio`（默认 `0.04`，`0` = 关闭该过滤、也完全不发详情请求），
+  设置页「采集参数」可改；`detail_interval` 默认 1.5s 节流。
+- 卡片新增 `⭐ 收藏数`（悬停显示藏赞比百分比）；数据字段新增 `collects` / `collect_ratio`。
+- 实测：18 条候选的藏/赞比 p25=0.040、中位 0.077、p75=0.129（跨度 25 倍，区分度够）；
+  默认 0.04 约淘汰最低 20~25%，单次采集 10 条耗时由 ~12s 增至 ~28s（多 15~20 次详情请求）。
+- 测试：`tests/test_xhs_filter.py` 新增 4 项（低于阈值丢弃 / 达标保留并回填 / 详情失败放行 / 阈值 0 不请求）。
+
 ### 新增
 - **小红书推荐流接入**（`daily_push/sources/xiaohongshu.py`，恢复 8 月因风控暂停的源）。
   - 走 PC 网页 `POST /api/sns/web/v1/homefeed`（`category=homefeed_recommend`），20 条/页、`cursor_score` 翻页。

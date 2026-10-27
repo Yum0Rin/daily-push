@@ -151,6 +151,8 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
   "author": "辰羽",
   "likes": 31000,               // 由 "3.1万" 换算出的整数
   "likes_text": "3.1万",        // 原始文案，前端直接显示
+  "collects": 1846,             // 收藏数（来自笔记详情；未开启藏赞比过滤时为 0）
+  "collect_ratio": 0.0595,      // 收藏 / 点赞；详情请求失败时为 null
   "kind": "normal",             // normal=图文 / video=视频
   "pic": "封面 URL（取 cover.info_list 的 FD_PRV_WEBP）",
   "created": 1792659920         // 笔记 ID 前 8 位十六进制 = 发布时间戳
@@ -173,11 +175,23 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 
 筛选与配置：
 - `xiaohongshu.min_likes`（策略，默认 5000）：点赞数下限。
+- `xiaohongshu.min_collect_ratio`（策略，默认 0.04）：**藏/赞比**下限，`0` = 关闭。
 - `xiaohongshu.limit`（config，默认 10）：返回条数。
 - `xiaohongshu.max_pages`（策略，默认 6）：最多翻几页（凑不够就返回实际条数）。
 - `xiaohongshu.ad_keywords`（策略，默认见模块内 `DEFAULT_AD_KEYWORDS`）：命中标题或作者即丢弃。
 - `xiaohongshu.exclude_keywords`（策略）：额外屏蔽词，命中标题或作者即丢弃。
-- 每次翻页间隔 `request_interval`（默认 2 秒），失败重试 1 次。
+- 每次翻页间隔 `request_interval`（默认 2 秒），失败重试 1 次；详情请求间隔 `detail_interval`（默认 1.5 秒）。
+
+**没有浏览量，用「藏/赞比」代替**：小红书推荐流与笔记详情接口**都不返回浏览/播放数**
+（`note_card` 里只有点赞、收藏、评论、分享；浏览量只有作者在创作中心能看到），
+所以做不了 B站 那种「点赞/播放」。替代做法是只对**已过点赞阈值**的候选调一次
+`POST /api/sns/web/v1/feed`（签名同推荐流）取 `collected_count`，按 `收藏/点赞` 过滤：
+收藏相对点赞越高 = 越偏干货/可留存，纯情绪娱乐内容这个比值很低。
+实测 18 条 5k+ 候选的分布：p25 = 0.040、中位 = 0.077、p75 = 0.129、最大 0.455。
+
+> 代价：每条候选多 1 次详情请求，单次采集由约 12 秒增至约 28 秒（15~20 次请求）。
+> 详情请求失败时按「比例未知」**放行**，不会因为一次失败把内容丢掉。
+> 阈值设 `0` 可完全关闭该过滤，此时一次详情请求都不会发。
 
 **广告判定是启发式**：推荐流返回的 `note_card` 只有 `cover / type / display_title / user /
 interact_info`，**没有任何广告/赞助标记**（网页上的「赞助」角标不在此接口里），
