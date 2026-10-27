@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS pushes (
     wechat      TEXT,
     mp          TEXT,
     xhs         TEXT,
-    bili_rec    TEXT
+    bili_rec    TEXT,
+    douyin      TEXT
 );
 """
 
@@ -29,7 +30,7 @@ class Storage:
         with self._lock:
             self.conn.execute(_SCHEMA)
             cols = [r[1] for r in self.conn.execute("PRAGMA table_info(pushes)").fetchall()]
-            for col in ("mp", "xhs", "bili_rec"):
+            for col in ("mp", "xhs", "bili_rec", "douyin"):
                 if col not in cols:
                     self.conn.execute(f"ALTER TABLE pushes ADD COLUMN {col} TEXT")
             self.conn.commit()
@@ -45,14 +46,15 @@ class Storage:
         return True
 
     def save(self, push_date, netease=None, bilibili=None, qq=None, wechat=None, mp=None,
-             xhs=None, bili_rec=None, overwrite=False):
+             xhs=None, bili_rec=None, douyin=None, overwrite=False):
         import datetime
         now = datetime.datetime.now().isoformat(timespec="seconds")
         fields = {"netease": netease, "bilibili": bilibili,
-                  "qq": qq, "wechat": wechat, "mp": mp, "xhs": xhs, "bili_rec": bili_rec}
+                  "qq": qq, "wechat": wechat, "mp": mp, "xhs": xhs, "bili_rec": bili_rec,
+                  "douyin": douyin}
         with self._lock:
             existing = self.conn.execute(
-                "SELECT netease, bilibili, qq, wechat, mp, xhs, bili_rec FROM pushes "
+                "SELECT netease, bilibili, qq, wechat, mp, xhs, bili_rec, douyin FROM pushes "
                 "WHERE push_date=?", (push_date,)).fetchone()
             merged = {}
             for name, val in fields.items():
@@ -64,11 +66,12 @@ class Storage:
                 merged[name] = val
             self.conn.execute(
                 "INSERT INTO pushes (push_date, created_at, netease, bilibili, qq, wechat, mp, "
-                "xhs, bili_rec) VALUES (?,?,?,?,?,?,?,?,?) "
+                "xhs, bili_rec, douyin) VALUES (?,?,?,?,?,?,?,?,?,?) "
                 "ON CONFLICT(push_date) DO UPDATE SET "
                 "created_at=excluded.created_at, netease=excluded.netease, "
                 "bilibili=excluded.bilibili, qq=excluded.qq, wechat=excluded.wechat, "
-                "mp=excluded.mp, xhs=excluded.xhs, bili_rec=excluded.bili_rec",
+                "mp=excluded.mp, xhs=excluded.xhs, bili_rec=excluded.bili_rec, "
+                "douyin=excluded.douyin",
                 (push_date, now,
                  json.dumps(merged["netease"], ensure_ascii=False) if merged["netease"] is not None else None,
                  json.dumps(merged["bilibili"], ensure_ascii=False) if merged["bilibili"] is not None else None,
@@ -76,7 +79,8 @@ class Storage:
                  json.dumps(merged["wechat"], ensure_ascii=False) if merged["wechat"] is not None else None,
                  json.dumps(merged["mp"], ensure_ascii=False) if merged["mp"] is not None else None,
                  json.dumps(merged["xhs"], ensure_ascii=False) if merged["xhs"] is not None else None,
-                 json.dumps(merged["bili_rec"], ensure_ascii=False) if merged["bili_rec"] is not None else None),
+                 json.dumps(merged["bili_rec"], ensure_ascii=False) if merged["bili_rec"] is not None else None,
+                 json.dumps(merged["douyin"], ensure_ascii=False) if merged["douyin"] is not None else None),
             )
             self.conn.commit()
 
@@ -96,6 +100,7 @@ class Storage:
             "mp": json.loads(row["mp"]) if row["mp"] else None,
             "xhs": json.loads(row["xhs"]) if row["xhs"] else None,
             "bili_rec": json.loads(row["bili_rec"]) if row["bili_rec"] else None,
+            "douyin": json.loads(row["douyin"]) if row["douyin"] else None,
         }
 
     def list_dates(self):

@@ -40,6 +40,7 @@ jobs:
           NETEASE_COOKIE: ${{ secrets.NETEASE_COOKIE }}
           BILIBILI_SESSDATA: ${{ secrets.BILIBILI_SESSDATA }}
           XHS_COOKIE: ${{ secrets.XHS_COOKIE }}
+          DOUYIN_COOKIE: ${{ secrets.DOUYIN_COOKIE }}
         run: python tools/make_cloud_config.py
 
       - name: Start Netease API
@@ -50,7 +51,7 @@ jobs:
             sleep 1
           done
 
-      - name: Collect netease + bilibili + xiaohongshu
+      - name: Collect netease + bilibili + xiaohongshu + douyin
         env:
           PYTHONIOENCODING: utf-8
         run: python tools/cloud_collect.py

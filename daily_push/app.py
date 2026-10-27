@@ -61,7 +61,8 @@ def _normalize(source, value):
 
 
 # 各平台凭证在 config.json 里的字段名
-_CRED_FIELDS = {"netease": "cookie", "bilibili": "sessdata", "xiaohongshu": "cookie"}
+_CRED_FIELDS = {"netease": "cookie", "bilibili": "sessdata",
+                "xiaohongshu": "cookie", "douyin": "cookie"}
 
 
 def create_app(config_path=None, settings_path=None):
@@ -193,6 +194,7 @@ def create_app(config_path=None, settings_path=None):
                 "bilibili_configured": bool(cfg.get("bilibili", {}).get("sessdata")),
                 "netease_configured": bool(cfg.get("netease", {}).get("cookie")),
                 "xiaohongshu_configured": bool(cfg.get("xiaohongshu", {}).get("cookie")),
+                "douyin_configured": bool(cfg.get("douyin", {}).get("cookie")),
             },
         })
 
@@ -287,6 +289,9 @@ def create_app(config_path=None, settings_path=None):
                 elif source == "xiaohongshu":
                     value = (cfg.get("xiaohongshu") or {}).get("cookie") or ""
                     base = ""
+                elif source == "douyin":
+                    value = (cfg.get("douyin") or {}).get("cookie") or ""
+                    base = ""
                 else:
                     continue
                 if not value:
@@ -322,6 +327,8 @@ def create_app(config_path=None, settings_path=None):
                 v = (cfg.get("bilibili") or {}).get("sessdata") or ""
             elif s == "xiaohongshu":
                 v = (cfg.get("xiaohongshu") or {}).get("cookie") or ""
+            elif s == "douyin":
+                v = (cfg.get("douyin") or {}).get("cookie") or ""
             else:
                 continue
             if v:

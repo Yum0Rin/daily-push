@@ -109,7 +109,8 @@ def backfill_covers(storage, cfg, days=7, interval=1.0, log=print):
         if changed:
             storage.save(d, netease=ne, bilibili=row.get("bilibili"),
                          mp=row.get("mp"), xhs=row.get("xhs"),
-                         bili_rec=row.get("bili_rec"), overwrite=True)
+                         bili_rec=row.get("bili_rec"),
+                         douyin=row.get("douyin"), overwrite=True)
         log(f"[cover] {d}: fetched={stats['bili_fetched']} removed={stats['bili_removed']} "
             f"failed={stats['bili_failed']} netease_fixed={stats['netease_fixed']}")
     return stats
@@ -143,7 +144,8 @@ def backfill_wechat_covers(storage, cfg, since_days=180, log=print):
         if changed:
             storage.save(d, netease=row.get("netease"), bilibili=row.get("bilibili"),
                          mp=mp, xhs=row.get("xhs"),
-                         bili_rec=row.get("bili_rec"), overwrite=True)
+                         bili_rec=row.get("bili_rec"),
+                         douyin=row.get("douyin"), overwrite=True)
     log(f"[cover] wechat: fixed={fixed} covers={len(cmap)}")
     return {"wechat_fixed": fixed, "wechat_covers": len(cmap)}
 
@@ -182,7 +184,8 @@ def backfill_wechat_history(storage, cfg, since_days=180, log=print):
             filled += len(merged) - len(existing)
             storage.save(d, netease=row.get("netease"), bilibili=row.get("bilibili"),
                          mp=merged, xhs=row.get("xhs"),
-                         bili_rec=row.get("bili_rec"), overwrite=True)
+                         bili_rec=row.get("bili_rec"),
+                         douyin=row.get("douyin"), overwrite=True)
     log(f"[fill] wechat history: filled={filled}")
     return {"wechat_filled": filled}
 

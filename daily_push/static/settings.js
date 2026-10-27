@@ -44,6 +44,9 @@ const SOURCES = [
   { key: "xiaohongshu", label: "小红书", field: "cookie",
     tip: "必须粘贴浏览器里的整段 Cookie（至少含 a1=... 和 web_session=...），只给 web_session 无法生成签名；保存前会先验证。",
     input: "粘贴整段 Cookie（含 a1= 与 web_session=）" },
+  { key: "douyin", label: "抖音", field: "cookie",
+    tip: "粘贴抖音网页的整段 Cookie（至少含 sessionid=...）。不填也可以：本机 Firefox 已登录抖音时会自动读取。",
+    input: "粘贴整段 Cookie（含 sessionid=）" },
 ];
 
 function renderAuth() {
@@ -195,6 +198,11 @@ const PARAMS = [
   { path: ["xiaohongshu", "min_collect_ratio"], label: "小红书 · 最低藏赞比（0.1 = 10%，0 关闭）", type: "number", float: true },
   { path: ["xiaohongshu", "max_pages"], label: "小红书 · 最多翻页（每页 20 条）", type: "number" },
   { path: ["xiaohongshu", "time_budget"], label: "小红书 · 时间预算（秒）", type: "number" },
+  { path: ["douyin", "min_digg"], label: "抖音 · 最低点赞数", type: "number" },
+  { path: ["douyin", "min_collect_ratio"], label: "抖音 · 最低藏赞比（0.08 = 8%，0 关闭）", type: "number", float: true },
+  { path: ["douyin", "max_pages"], label: "抖音 · 最多翻页（每页 2~6 条）", type: "number" },
+  { path: ["douyin", "time_budget"], label: "抖音 · 时间预算（秒）", type: "number" },
+  { path: ["douyin", "blocked_tags"], label: "抖音 · 屏蔽标签词（逗号分隔，命中标签/话题即丢弃）", type: "text", list: true },
   { path: ["wechat", "max_articles"], label: "公众号最多条数（0=不限）", type: "number" },
   { path: ["wechat", "mp_cutoff_hour"], label: "公众号窗口起点（时）", type: "number" },
   { path: ["wechat", "reserve"], label: "公众号预留条数（隐藏缓冲）", type: "number" },
@@ -206,7 +214,8 @@ function getPath(obj, path) {
 
 function renderParams() {
   $("paramGrid").innerHTML = PARAMS.map((p, i) => {
-    const v = getPath(state.policy, p.path);
+    const raw = getPath(state.policy, p.path);
+    const v = Array.isArray(raw) ? raw.join(", ") : raw;
     return `<div class="param">
       <label>${esc(p.label)}</label>
       <input data-param="${i}" type="${p.type}" value="${esc(v ?? "")}">
@@ -219,7 +228,8 @@ async function saveParams() {
   $("paramGrid").querySelectorAll("input[data-param]").forEach((el) => {
     const p = PARAMS[+el.dataset.param];
     let val = el.value.trim();
-    if (p.type === "number") val = p.float ? parseFloat(val) : parseInt(val, 10);
+    if (p.list) val = val.split(/[,，\n]/).map((x) => x.trim()).filter(Boolean);
+    else if (p.type === "number") val = p.float ? parseFloat(val) : parseInt(val, 10);
     let node = policy;
     p.path.forEach((k, i) => {
       if (i === p.path.length - 1) node[k] = val;

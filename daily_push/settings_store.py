@@ -136,6 +136,15 @@ POLICY_SPEC = {
         "ad_keywords": _str_list,
         "exclude_keywords": _str_list,
     },
+    "douyin": {
+        "min_digg": _int(0, 100000000),
+        "min_collect_ratio": _ratio,
+        "max_pages": _int(1, 20),
+        "time_budget": _int(5, 300),
+        "blocked_tags": _str_list,
+        "ai_keywords": _str_list,
+        "exclude_keywords": _str_list,
+    },
 }
 
 # Editable credentials / machine settings -> written to config.json (gitignored).
@@ -158,6 +167,7 @@ SECRET_SPEC = {
     "site": {"repo": _str, "branch": _str, "export_dir": _str},
     "github": {"token": _secret},
     "xiaohongshu": {"cookie": _secret, "limit": _int(1, 100)},
+    "douyin": {"cookie": _secret, "limit": _int(1, 100)},
     "port": _int(1, 65535),
     "data_dir": _str,
 }
@@ -169,6 +179,7 @@ _SECRET_LEAVES = {
     ("netease", "base_url"),
     ("bilibili", "sessdata"),
     ("xiaohongshu", "cookie"),
+    ("douyin", "cookie"),
 }
 
 
@@ -276,6 +287,12 @@ def _apply_defaults(cfg):
     cfg["xiaohongshu"].setdefault("min_collect_ratio", 0.1)
     cfg["xiaohongshu"].setdefault("max_pages", 4)
     cfg["xiaohongshu"].setdefault("time_budget", 30)
+    cfg.setdefault("douyin", {})
+    cfg["douyin"].setdefault("limit", 6)
+    cfg["douyin"].setdefault("min_digg", 20000)
+    cfg["douyin"].setdefault("min_collect_ratio", 0.08)
+    cfg["douyin"].setdefault("max_pages", 6)
+    cfg["douyin"].setdefault("time_budget", 30)
     cfg.setdefault("max_songs", 5)
     cfg.setdefault("data_dir", "data")
     return cfg
@@ -364,9 +381,11 @@ def secrets_view(config_path=None):
     site = cfg.get("site") or {}
     github = cfg.get("github") or {}
     xhs = cfg.get("xiaohongshu") or {}
+    dy = cfg.get("douyin") or {}
     cookie = netease.get("cookie") or ""
     sessdata = bilibili.get("sessdata") or ""
     xhs_cookie = xhs.get("cookie") or ""
+    dy_cookie = dy.get("cookie") or ""
     return {
         "netease": {
             "mode": netease.get("mode") or "api",
@@ -381,6 +400,10 @@ def secrets_view(config_path=None):
         "xiaohongshu": {
             "cookie_configured": bool(xhs_cookie),
             "cookie_masked": mask(xhs_cookie),
+        },
+        "douyin": {
+            "cookie_configured": bool(dy_cookie),
+            "cookie_masked": mask(dy_cookie),
         },
         "email_configured": bool(email.get("smtp_user") and email.get("smtp_pass")),
         "site_repo": site.get("repo") or "",

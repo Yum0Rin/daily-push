@@ -216,3 +216,68 @@ interact_info`，**没有任何广告/赞助标记**（网页上的「赞助」�
 `sources/xiaohongshu.py` 被删除、只留 `tools/xhs_console.txt` 调研备忘。
 2026-10-27 重新验证：`xhshow` 签名 + 本机登录态均可用，推荐流 `code 0` 正常返回，
 账号风控已解除，故恢复接入。若再次遇到 300011，**停几天、别连续重试**。
+
+## 抖音推荐流 (sources/douyin.py) → `douyin` 字段
+
+数组，每项：
+```json
+{
+  "id": "7697586688307094181",
+  "title": "林花谢了春红 太匆匆",
+  "url": "https://www.douyin.com/video/7697586688307094181",
+  "author": "作者昵称",
+  "sec_uid": "MS4wLjABAAAA...",
+  "digg": 104813,                 // statistics.digg_count（点赞）
+  "collect": 9167,                // statistics.collect_count（收藏）
+  "comment": 4647,
+  "share": 361203,
+  "collect_ratio": 0.0875,        // 收藏 / 点赞
+  "duration": 22,                 // 秒（video.duration 毫秒数 /1000）
+  "created": 1792234063,
+  "pic": "封面 URL（统一 https）",
+  "tags": ["人文社科", "人文艺术", "历史"]   // video_tag + 话题名，最多 6 个
+}
+```
+
+数据来自 PC 推荐流 `GET /aweme/v1/web/tab/feed/`：
+`refresh_index` 1,2,3… 递增翻页，**每页只返回 2~6 条**（`count` 参数基本无效），
+单请求约 2~2.5s，6 页一般能拿到 30 条左右候选。
+
+**不需要签名**：与小红书不同，这个接口只要带上登录 Cookie（含 httpOnly 的 `sessionid`）
+就能直连，**没有 `a_bogus` 校验**（实测纯 Python `requests` 直接 `status_code=0`）。
+唯一要注意的是公共参数必须齐全，缺了会被网关回 `404 Unsupported path(Janus)`。
+
+登录态来源（按顺序）：
+1. `config.json` 的 `douyin.cookie`（整段 Cookie，至少含 `sessionid=`）——云端用 GitHub Secret `DOUYIN_COOKIE`；
+2. 本机 **Firefox** 配置目录里已登录的抖音 Cookie —— 只读打开 `cookies.sqlite`，不复制不外传。
+
+筛选与配置：
+- `douyin.min_digg`（策略，默认 20000）：点赞数下限。
+- `douyin.min_collect_ratio`（策略，默认 0.08）：**藏/赞比**下限，`0` = 关闭。
+- `douyin.blocked_tags`（策略，默认 游戏 / 娱 / 热点 / vibe / 英语 / 抽象 / 推荐 / 唠嗑 / 零基础 / 抖音 / 华语乐坛 / 讲解 / 作文 / AI）：
+  命中 `video_tag[].tag_name` **或** 话题 `hashtag_name`（子串、忽略大小写）即丢弃；
+  `AI` 是子串匹配，会连带命中 `#aigc` / `#aivideo` 这类话题。
+  改完屏蔽词可跑 `python tools/purge_ignored.py --no-push` 按同一套规则重算历史（`is_blocked_entry()`）。
+- `douyin.ai_keywords`（策略，默认见模块内 `DEFAULT_AI_KEYWORDS`）：命中文案/作者/话题即丢弃。
+- `douyin.exclude_keywords`（策略）：额外屏蔽词，命中文案或作者即丢弃。
+- `douyin.limit`（config，默认 6）：返回条数上限（凑不满就返回实际条数）。
+- `douyin.max_pages`（策略，默认 6）、`douyin.time_budget`（策略，默认 30 秒）、
+  `request_interval`（默认 1.5 秒）。
+- 额外过滤：`is_ads`（广告）与 `is_life_item`（团购/探店类生活服务）直接丢弃；
+  跨天去重按 `aweme_id`（URL 固定为 `/video/<id>`）。
+
+**没有播放量**：推荐流的 `statistics.play_count` **恒为 0**（网页端不下发），
+所以做不了 B站那种「点赞/播放」比例——替代方案就是「藏/赞比」（收藏数是白送的，
+不像小红书还要额外请求详情）。实测 32 条样本：藏/赞比 p25=0.048、中位=0.078、p75=0.12。
+
+**AI 内容只能启发式判断**：接口**不下发任何 AIGC 标记**
+（原始响应里 `aigc_info` / `is_aigc` / `AI生成` 全都不存在，只有与成片无关的
+`music.extra.aigc_clip`），抖音那个「内容由AI生成」角标走的是另一条通道。
+因此只能按文案 + 话题关键词（`ai_keywords`）过滤，会漏判。
+
+**封面会过期**：`video.cover.url_list` 带 `x-expires` 签名（约 30 天），
+历史日期页面的封面图过一段时间会失效（前端会显示占位）。
+
+**不按时间过滤**：推荐流会推几天前的老视频（32 条样本里 16 条超 7 天），
+所以不套 `created` 时间窗口，跨天去重只靠「已推过的 aweme_id」。
+

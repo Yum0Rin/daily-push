@@ -5,6 +5,8 @@
 - bilibili: 按 author 名包含 bilibili.exclude 中任一关键词的条目
 - mp(公众号): 按 author（公众号名）包含 wechat.exclude_keywords 中任一关键词的条目
   （仅作者，不匹配标题，避免误伤）
+- douyin(抖音): 按「标签/话题屏蔽词 + AI 关键词 + 屏蔽词」重算（与采集同一套规则），
+  这样改了 `douyin.blocked_tags` 后历史与当天的条目也会被清掉
 
 从本地库所有历史日期删除后，重新导出静态站，可选推送 GitHub Pages。
 """
@@ -26,7 +28,7 @@ def purge(storage, cfg):
     mp_exclude = [str(k) for k in cfg.get("wechat", {}).get("exclude_keywords", [])]
     max_videos = int(cfg.get("bilibili", {}).get("max_videos", 10))
     max_articles = int(cfg.get("wechat", {}).get("max_articles", 10))
-    removed = {"bilibili": [], "mp": []}
+    removed = {"bilibili": [], "mp": [], "douyin": []}
     for d in storage.list_dates():
         row = storage.get(d)
         if not row:
@@ -56,6 +58,22 @@ def purge(storage, cfg):
             if hit:
                 row["mp"] = promote_reserve(kept, max_articles)
                 changed = True
+        if row.get("douyin"):
+            from daily_push.sources.douyin import is_blocked_entry
+            dy_cfg = cfg.get("douyin") or {}
+            kept, hit = [], False
+            for it in row["douyin"]:
+                it = it or {}
+                if is_blocked_entry(it, dy_cfg.get("blocked_tags"),
+                                    dy_cfg.get("ai_keywords"),
+                                    dy_cfg.get("exclude_keywords")):
+                    removed["douyin"].append((d, it.get("title") or ""))
+                    hit = True
+                else:
+                    kept.append(it)
+            if hit:
+                row["douyin"] = kept
+                changed = True
         if changed:
             # overwrite=True 会把没传的字段写成 None，所以小红书必须显式带上，
             # 否则每次「保存并应用屏蔽名单」都会把当天的小红书数据抹掉。
@@ -64,6 +82,7 @@ def purge(storage, cfg):
                          mp=row.get("mp") or None,
                          xhs=row.get("xhs") or None,
                          bili_rec=row.get("bili_rec") or None,
+                         douyin=row.get("douyin") or None,
                          overwrite=True)
     return removed
 
@@ -128,6 +147,7 @@ def purge_and_publish(cfg=None, config_path=None, netease_stats=None):
     return {
         "removed_bilibili": len(removed["bilibili"]),
         "removed_mp": len(removed["mp"]),
+        "removed_douyin": len(removed["douyin"]),
         "removed_netease": len(netease_result["removed"]),
         "backfilled_netease": netease_result["backfilled"],
         "exported": exported,
@@ -143,7 +163,7 @@ def main():
     removed = purge(storage, cfg)
     storage.close()
 
-    for k in ("bilibili", "mp"):
+    for k in ("bilibili", "mp", "douyin"):
         items = removed[k]
         print(f"[{k}] removed {len(items)} entries")
         for d, author in items:

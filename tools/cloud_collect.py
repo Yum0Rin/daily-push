@@ -67,6 +67,7 @@ def _seed_published(storage, days):
             mp=fields.get("mp"),
             xhs=fields.get("xhs"),
             bili_rec=fields.get("bili_rec"),
+            douyin=fields.get("douyin"),
         )
 
 

@@ -10,11 +10,13 @@ const els = {
   ups: $("ups"),
   biliRecList: $("biliRecList"),
   xhsList: $("xhsList"),
+  douyinList: $("douyinList"),
   mpList: $("mpList"),
   cardMusic: $("card-music"),
   cardBili: $("card-bili"),
   cardBiliRec: $("card-bilirec"),
   cardXhs: $("card-xhs"),
+  cardDouyin: $("card-douyin"),
   cardMp: $("card-mp"),
   cfMusic: $("cfMusic"),
   cfNote: $("cfNote"),
@@ -87,6 +89,12 @@ function errMessage(kind, raw) {
     if (credential) return "小红书登录态已失效，请在浏览器重新登录后再采集。";
     if (conn) return "小红书接口暂时无法连接，请稍后再试。";
     return "小红书推荐获取失败，请稍后重试。";
+  }
+  if (kind === "douyin") {
+    if (/登录态缺失|sessionid/i.test(r)) return "抖音登录态缺失，请在 Firefox 登录抖音后再采集。";
+    if (credential) return "抖音登录态已失效，请在浏览器重新登录后再采集。";
+    if (conn) return "抖音接口暂时无法连接，请稍后再试。";
+    return "抖音推荐获取失败，请稍后重试。";
   }
   return "数据获取失败，请稍后重试。";
 }
@@ -369,6 +377,41 @@ function renderXhs(data, hasDay) {
   }).join("");
 }
 
+function renderDouyin(data, hasDay) {
+  const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
+  const list = Array.isArray(data) ? data.filter((n) => !n.hidden) : [];
+  // 抖音模块是 2026-10-27 才加的：历史日期没有这个字段就整块不显示
+  const hasData = data !== undefined && data !== null;
+  els.cardDouyin.style.display = hasDay && hasData ? "" : "none";
+  if (!hasDay || !hasData) return;
+  if (isErr) {
+    els.douyinList.innerHTML = errBlock("douyin", data.error);
+    return;
+  }
+  if (list.length === 0) {
+    els.douyinList.innerHTML =
+      `<div class="module-note">🎬 今日暂无符合条件的推荐（2 万赞以上 + 藏赞比达标）。</div>`;
+    return;
+  }
+  els.douyinList.innerHTML = list.map((n) => {
+    const pic = (n.pic || "").replace(/^http:/, "https:");
+    return `
+      <li class="gcard">
+        <a class="gthumb" href="${esc(n.url)}" target="_blank" rel="noopener">
+          ${pic ? `<img src="${esc(pic)}" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : `<span class="gthumb-ph">🎬</span>`}
+          <span class="xhs-likes">♥ ${esc(fmtViews(n.digg))}</span>
+        </a>
+        <div class="ginfo">
+          <a class="gtitle" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title || "（无文案）")}</a>
+          <div class="gmeta">
+            ${n.author ? `<span class="author">${esc(n.author)}</span>` : ""}
+            ${n.created ? `<span class="time">${esc(fmtCreated(n.created))}</span>` : ""}
+          </div>
+        </div>
+      </li>`;
+  }).join("");
+}
+
 function fmtViews(n) {
   const v = Number(n) || 0;
   if (v >= 100000000) return (v / 100000000).toFixed(1).replace(/\.0$/, "") + "亿";
@@ -453,6 +496,7 @@ function render(data) {
   renderBili(data && data.bilibili, hasDay);
   renderBiliRec(data && data.bili_rec, hasDay);
   renderXhs(data && data.xhs, hasDay);
+  renderDouyin(data && data.douyin, hasDay);
   renderArticles(data && data.mp, hasDay);
 
   // 整日无记录（未采集）→ 只显示「该日暂无推送记录」；
@@ -470,6 +514,7 @@ function renderSummary(data) {
   const bili = shown(data.bilibili);
   const rec = shown(data.bili_rec);
   const xhs = shown(data.xhs);
+  const douyin = shown(data.douyin);
   const stat = (target, label, val) => `
     <button class="stat" data-target="${target}"${val ? "" : " disabled"}>
       <div class="label">${label}</div><div class="value">${val}</div>
@@ -479,6 +524,7 @@ function renderSummary(data) {
     (present(data.bili_rec) ? stat("card-bilirec", "🔥 B站推荐", rec) : "") +
     stat("card-bili", "👀 up动态", bili) +
     (present(data.xhs) ? stat("card-xhs", "📕 小红书", xhs) : "") +
+    (present(data.douyin) ? stat("card-douyin", "🎬 抖音", douyin) : "") +
     stat("card-mp", "📰 公众号推文", mp);
 }
 
@@ -490,7 +536,7 @@ async function loadDay(date) {
   const d = await api("/api/day/" + date);
   const hasRow = d && typeof d === "object"
     && (d.netease !== undefined || d.bilibili !== undefined || d.mp !== undefined
-        || d.xhs !== undefined || d.bili_rec !== undefined);
+        || d.xhs !== undefined || d.bili_rec !== undefined || d.douyin !== undefined);
   render(hasRow ? d : null);
 }
 

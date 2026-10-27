@@ -38,7 +38,8 @@ def _save_cutoffs(storage_dir, cutoffs):
         pass
 
 
-def collect_once(config_path=None, netease=True, bilibili=True, wechat=True, xhs=True):
+def collect_once(config_path=None, netease=True, bilibili=True, wechat=True, xhs=True,
+                 douyin=True):
     cfg = load_config(config_path)
     data_dir = cfg.get("data_dir", "data")
     storage_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), data_dir)
@@ -91,6 +92,23 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True, xhs
         except XhsError as e:
             result["xhs"] = {"error": str(e)}
 
+    # Douyin recommended feed (点赞/藏赞比/标签屏蔽，登录态本地取 Firefox 或 config)
+    if douyin:
+        from .sources.douyin import DouyinCollector, DouyinError
+        if douyin_available(cfg):
+            pushed_dy = storage.pushed_urls("douyin", exclude_date=today.isoformat())
+            try:
+                result["douyin"] = DouyinCollector(cfg).collect(exclude_urls=pushed_dy)
+            except DouyinError as e:
+                result["douyin"] = {"error": str(e)}
+        elif sys.platform == "win32":
+            result["douyin"] = {"error": "抖音登录态缺失：请在本机 Firefox 登录抖音，或配置 douyin.cookie"}
+        else:
+            # 云端没有浏览器：未配置 DOUYIN_COOKIE 时静默跳过，别把整轮采集判失败
+            result.pop("douyin", None)
+    else:
+        result.pop("douyin", None)
+
     # WeChat official account articles (title + url)
     if wechat:
         if wechat_available():
@@ -133,12 +151,27 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True, xhs
                  bilibili=result.get("bilibili"),
                  mp=result.get("mp"),
                  xhs=result.get("xhs"),
-                 bili_rec=result.get("bili_rec"))
+                 bili_rec=result.get("bili_rec"),
+                 douyin=result.get("douyin"))
     storage.close()
     return result
 
 
 collect = collect_once  # alias
+
+
+def douyin_available(cfg):
+    """抖音是否需要跑：config 配了整段 Cookie，或本机 Firefox 有已登录的抖音 Cookie。"""
+    cookie = str(((cfg.get("douyin") or {}).get("cookie")) or "").strip()
+    if "sessionid" in cookie:
+        return True
+    if not sys.platform == "win32":
+        return False
+    try:
+        from .sources.douyin import _cookies_from_firefox
+        return bool(_cookies_from_firefox())
+    except Exception:
+        return False
 
 
 def wechat_available():

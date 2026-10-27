@@ -5,6 +5,29 @@
 
 ## 2026-10-27
 
+### 新增：抖音推荐流模块（`douyin`）
+- 新增 `daily_push/sources/douyin.py`：走 PC 推荐流 `GET /aweme/v1/web/tab/feed/`，
+  `refresh_index` 递增翻页（每页实测只返 2~6 条）。**该接口不校验 `a_bogus` 签名**，
+  纯 Python + 本机 Firefox 登录 Cookie 即可直连（缺公共参数会 404 `Unsupported path(Janus)`）。
+- 口径（2026-10-27 定）：点赞 ≥ **20000**、**藏/赞比 ≥ 0.08**（收藏数接口自带，无额外请求）、
+  最多 **6** 条；`is_ads` / `is_life_item`（团购探店）直接丢弃。
+- **标签屏蔽**：`video_tag[].tag_name` 或话题 `hashtag_name` 命中即丢弃，默认词表
+  `游戏 / 娱 / 热点 / vibe / 英语 / 抽象 / 推荐 / 唠嗑 / 零基础 / 抖音 / 华语乐坛 / 讲解 / 作文 / AI`
+  （`douyin.blocked_tags`，设置页可逗号分隔编辑）。
+- **AI 内容只能启发式**：推荐流响应里没有任何 AIGC 标记（`aigc_info`/`is_aigc` 均不存在），
+  只能按 `ai_keywords` 匹配文案/话题 + `blocked_tags` 里的 `AI`（子串匹配话题名），会漏判。
+- **屏蔽词改动会重算历史**：`tools/purge_ignored.py` 新增抖音分支，用与采集同一套规则
+  （`is_blocked_entry()`）重算已入库条目，避免「改了屏蔽词但历史照旧」。
+- 抖音网页端**不下发播放量**（`statistics.play_count` 恒为 0），所以做不了 B站的「点赞/播放」，
+  改用「藏/赞比」。
+- 接线：`storage` 新增 `douyin` 列（老库自动 `ALTER TABLE`）、`collector` 采集与跨天去重
+  （按 `aweme_id`）、`export_site` / `purge_ignored` / `cover_backfill` / `netease_history` /
+  `cloud_collect` 同步透传该字段、首页新增「🎬 抖音推荐」卡片与统计项。
+- 凭证：`config.json` 的 `douyin.cookie`（缺省时自动读本机 Firefox 登录态）；
+  设置页新增抖音登录卡片与采集参数；云端用 GitHub Secret `DOUYIN_COOKIE`。
+- 测试：`tests/test_douyin_filter.py` 15 项（标签屏蔽 / AI 词 / 点赞 / 藏赞比 / 广告 /
+  条数 / 已推去重 / 字段映射）。
+
 ### 前端：网易云日推改为 3D 卡片流
 - 网易云模块由**纵向列表**改为**卡片视图 + 景深左右切换**（`.cf-*` 系列样式）：
   封面作卡片主体，歌名 / 歌手·专辑 / ❤️💬 / 热评统一放在卡片流下方的信息条；

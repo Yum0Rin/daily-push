@@ -35,6 +35,9 @@ cfg["bilibili"]["sessdata"] = os.environ.get("BILIBILI_SESSDATA", "")
 # 小红书云端没有浏览器登录态，必须靠 Secrets 注入整段 Cookie（含 a1 与 web_session）
 cfg.setdefault("xiaohongshu", {})
 cfg["xiaohongshu"]["cookie"] = os.environ.get("XHS_COOKIE", "")
+# 抖音同理：云端没有浏览器，靠 DOUYIN_COOKIE 注入整段 Cookie（含 sessionid）
+cfg.setdefault("douyin", {})
+cfg["douyin"]["cookie"] = os.environ.get("DOUYIN_COOKIE", "")
 
 out = os.path.join(BASE_DIR, "config.json")
 with open(out, "w", encoding="utf-8") as f:

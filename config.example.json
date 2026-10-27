@@ -22,6 +22,10 @@
     "cookie": "",
     "limit": 10
   },
+  "douyin": {
+    "cookie": "",
+    "limit": 6
+  },
   "push_time": "07:30",
   "max_songs": 5,
   "port": 5000,

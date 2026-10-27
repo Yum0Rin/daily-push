@@ -26,7 +26,8 @@ class SyncCookiesTest(unittest.TestCase):
                                   {"netease": "MUSIC_U=abc", "bilibili": "sess"})
         self.assertTrue(res["netease"]["ok"])
         self.assertTrue(res["bilibili"]["ok"])
-        self.assertEqual(os.path.basename(calls[0]["args"][0]), "gh")
+        # Windows 上 shutil.which("gh") 会返回 gh.EXE，按文件名主干比较
+        self.assertEqual(os.path.splitext(os.path.basename(calls[0]["args"][0]))[0], "gh")
         self.assertEqual(calls[0]["args"][1:3], ["secret", "set"])
         self.assertIn("NETEASE_COOKIE", calls[0]["args"])
         self.assertEqual(calls[0]["input"], "MUSIC_U=abc")          # value via stdin

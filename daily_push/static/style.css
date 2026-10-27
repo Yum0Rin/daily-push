@@ -285,6 +285,9 @@ button.cf-nav { padding: 3px 12px; font-size: 12px; border-radius: 999px; }
 /* 小红书：竖图 3:4，封面右下角叠点赞数 */
 .cardgrid.xhs .gthumb { aspect-ratio: 3 / 4; position: relative; }
 .cardgrid.xhs .gtitle { min-height: 2.8em; }
+/* 抖音：竖屏视频 3:4，封面右下角叠点赞数 */
+.cardgrid.douyin .gthumb { aspect-ratio: 3 / 4; position: relative; }
+.cardgrid.douyin .gtitle { min-height: 2.8em; }
 .cardgrid .gthumb { position: relative; }
 .cardgrid .rec-views {
   position: absolute; left: 6px; bottom: 6px;

@@ -95,5 +95,28 @@
     "max_pages": 4,
     "time_budget": 30,
     "exclude_keywords": []
+  },
+  "douyin": {
+    "min_digg": 20000,
+    "min_collect_ratio": 0.08,
+    "max_pages": 6,
+    "time_budget": 30,
+    "blocked_tags": [
+      "游戏",
+      "娱",
+      "热点",
+      "vibe",
+      "英语",
+      "抽象",
+      "推荐",
+      "唠嗑",
+      "零基础",
+      "抖音",
+      "华语乐坛",
+      "讲解",
+      "作文",
+      "AI"
+    ],
+    "exclude_keywords": []
   }
 }

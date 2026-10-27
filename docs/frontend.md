@@ -17,17 +17,23 @@
 ```
 header: 品牌标题 + 主题切换 | 日期条（◀ datePicker ▶）
 main:
-  summary       # 顶部统计卡（歌曲/B站/公众号 条数，点击居中到对应卡片）
+  summary       # 顶部统计卡（歌曲/B站/B站推荐/小红书/抖音/公众号 条数，点击居中到对应卡片）
   card-music    # 🎵 网易云日推：3D 卡片流（景深左右切换，循环）+ 焦点歌曲信息条
+  card-bilirec  # 🔥 B站首页推荐（未关注，播放量+点赞率；封面角标显示播放量）
   card-bili     # 📺 B站关注UP（最近视频：标题链接+UP名+时间，同公众号排版）
+  card-xhs      # 📕 小红书推荐（3:4 竖图 + 点赞角标）
+  card-douyin   # 🎬 抖音推荐（3:4 竖图 + 点赞角标，同小红书排版）
   card-mp       # 📰 微信公众号推文（作者+标题+时间，外链跳转，通知类弱化置底）
   emptyState    # 无数据提示（登录时自动采集一次）
 右下角：回到顶部按钮（🔝，滚动离开顶部时出现）
 ```
 
+> `card-bilirec` / `card-xhs` / `card-douyin` 都是 2026-10-27 加的模块：
+> 当天**没有该字段就整块隐藏**（历史日期不会显示「0 条」）。
+
 ## 关键逻辑 (app.js)
 
-- `render(data)`：依据 `data.mp` / `data.netease` / `data.bilibili`
+- `render(data)`：依据 `data.douyin` / `data.xhs` / `data.bili_rec` / `data.mp` / `data.netease` / `data.bilibili`
   是否存在且非空来显示/隐藏卡片，并渲染 summary。
 - `renderArticles`：逐条渲染公众号推文，`a.author` 显示公众号名，
   `a.notify` 为 true 时加「通知」标签并弱化样式（排序由后端完成）。
@@ -37,6 +43,8 @@ main:
   公众号卡片，避免「暂无推送记录」与公众号说明两个提示重复矛盾。
 - `renderBili`：B站卡片复用公众号排版（标题链接 + `u.author` 下一行 + `u.created` 时间），
   初始化时给 `#ups` 加上 `articles` class 以复用样式。
+- `renderDouyin`：抖音推荐卡片，排版同 `renderXhs`（3:4 竖图 + 右下角 `♥ 点赞数`，
+  用 `fmtViews` 显示「万/亿」），额外用 `referrerpolicy="no-referrer"` 规避封面防盗链。
 - `renderMusic`：渲染 3D 卡片流（见下节「网易云卡片流」），信息（歌名/歌手·专辑/❤️💬/热评）
   放在卡片流下方的 `#cfCaption` 里，点卡片本身即跳转网易云播放页。
 - **网易云卡片流**（2026-10-27 起）：`#cfMusic` 为容器，`.cf-viewport > .cf-stage > ol.cf-track > li.cf-item`。
