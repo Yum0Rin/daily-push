@@ -22,6 +22,7 @@ const els = {
   cfCounter: $("cfCounter"),
   cfPrev: $("cfPrev"),
   cfNext: $("cfNext"),
+  cfDice: $("cfDice"),
   emptyState: $("emptyState"),
   collectBtn: $("collectBtn"),
   collectMsg: $("collectMsg"),
@@ -29,6 +30,23 @@ const els = {
 
 // 站点 2026-08-07 才上线：这之前的日期没有任何数据，日期选择器里标灰且不可点
 const MIN_DATE = "2026-08-07";
+
+// 有推送记录的日期集合：静态站直接用内联的 DAYS，本地 Flask 走 /api/dates。
+// 没产生过推送的日期同样标灰不可点（避免点进去看到空页面）。
+let AVAILABLE = DAYS ? new Set(Object.keys(DAYS)) : null;
+
+async function loadAvailableDates() {
+  if (AVAILABLE) return AVAILABLE;
+  try {
+    const d = await api("/api/dates");
+    AVAILABLE = new Set((d && d.dates) || []);
+  } catch (e) {
+    AVAILABLE = null;  // 拿不到就不做这层限制，别把整页卡死
+  }
+  return AVAILABLE;
+}
+
+const dayHasData = (ymd) => (AVAILABLE && AVAILABLE.size ? AVAILABLE.has(ymd) : true);
 
 function localDateStr() {
   const d = new Date();
@@ -177,19 +195,39 @@ function cfGo(delta) {
   cfSelect(CF.cur + delta);
 }
 
+// 循环：索引按张数取模，第一张往左就是最后一张
 function cfSelect(index) {
   const n = CF.list.length;
-  if (!n) return;
-  const next = Math.max(0, Math.min(n - 1, index));
+  if (n < 2) return;
+  const next = ((index % n) + n) % n;
   if (next === CF.cur) return;
   CF.cur = next;
   cfApply();
 }
 
+function cfRandom() {
+  const n = CF.list.length;
+  if (n < 2) return;
+  let next = CF.cur;
+  while (next === CF.cur) next = Math.floor(Math.random() * n);
+  cfSelect(next);
+  els.cfDice.classList.remove("spin");
+  void els.cfDice.offsetWidth;
+  els.cfDice.classList.add("spin");
+}
+
+// 邻居关系也按环形算：越过两端的那几张绕回来贴在另一侧
+function cfOffset(i, n) {
+  let off = i - CF.cur;
+  if (off > n / 2) off -= n;
+  else if (off < -n / 2) off += n;
+  return off;
+}
+
 function cfApply() {
   const n = CF.list.length;
   CF.items.forEach((el, i) => {
-    const off = i - CF.cur;
+    const off = cfOffset(i, n);
     el.style.setProperty("--side", Math.sign(off));
     el.style.setProperty("--distance", Math.abs(off));
     el.style.zIndex = String(n - Math.abs(off));
@@ -198,8 +236,7 @@ function cfApply() {
     if (card && card.tagName === "A") card.tabIndex = off === 0 ? 0 : -1;
   });
   els.cfCounter.textContent = `${CF.cur + 1} / ${n}`;
-  els.cfPrev.disabled = CF.cur === 0;
-  els.cfNext.disabled = CF.cur === n - 1;
+  els.cfPrev.disabled = els.cfNext.disabled = els.cfDice.disabled = n < 2;
   cfRenderCaption();
 }
 
@@ -228,6 +265,7 @@ function cfBind() {
   if (!root) return;
   els.cfPrev.addEventListener("click", () => cfGo(-1));
   els.cfNext.addEventListener("click", () => cfGo(1));
+  els.cfDice.addEventListener("click", cfRandom);
   root.addEventListener("keydown", (e) => {
     if (e.key === "ArrowLeft") cfGo(-1);
     else if (e.key === "ArrowRight") cfGo(1);
@@ -442,8 +480,8 @@ function renderSummary(data) {
     </button>`;
   els.summary.innerHTML =
     stat("card-music", "🎵 推荐歌曲", n) +
-    stat("card-bili", "👀 up动态", bili) +
     (present(data.bili_rec) ? stat("card-bilirec", "🔥 B站推荐", rec) : "") +
+    stat("card-bili", "👀 up动态", bili) +
     (present(data.xhs) ? stat("card-xhs", "📕 小红书", xhs) : "") +
     stat("card-mp", "📰 公众号推文", mp);
 }
@@ -462,6 +500,7 @@ async function loadDay(date) {
 
 function selectDate(ymd) {
   if (ymd && ymd < MIN_DATE) return;
+  if (ymd && !dayHasData(ymd)) return;  // 该日没有推送记录
   currentDate = ymd;
   els.datePicker.value = ymd;
   const btn = document.getElementById("dpButton");
@@ -514,13 +553,16 @@ function buildDatePicker() {
       const ymd = `${view.y}-${String(view.mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const wd = (first.getDay() + d - 1) % 7;
       const beforeLaunch = ymd < MIN_DATE;
+      const noPush = !dayHasData(ymd);
+      const locked = beforeLaunch || noPush;
       const cls = [
         ymd === currentDate ? "selected" : "",
         ymd === todayStr ? "today" : "",
         wd === 0 || wd === 6 ? "weekend" : "",
         beforeLaunch ? "before-launch" : "",
+        noPush ? "no-push" : "",
       ].filter(Boolean).join(" ");
-      body += `<button type="button" data-day="${d}" class="${cls}"${beforeLaunch ? " disabled" : ""}>${d}</button>`;
+      body += `<button type="button" data-day="${d}" class="${cls}"${locked ? " disabled" : ""}>${d}</button>`;
     }
     grid.innerHTML = head + body;
   }
@@ -568,6 +610,15 @@ function buildDatePicker() {
 }
 
 function shiftDate(days) {
+  // 有日期清单时直接跳到「上一个/下一个有推送的日期」，跳过没推送的空档
+  if (AVAILABLE && AVAILABLE.size) {
+    const list = [...AVAILABLE].sort();
+    const pick = days > 0
+      ? list.find((d) => d > currentDate)
+      : [...list].reverse().find((d) => d < currentDate);
+    if (pick) selectDate(pick);
+    return;
+  }
   const ymd = (currentDate || "").match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   const dt = ymd ? new Date(+ymd[1], +ymd[2] - 1, +ymd[3]) : new Date();
   dt.setDate(dt.getDate() + days);
@@ -585,6 +636,11 @@ async function api(path, opts) {
 }
 
 async function init() {
+  await loadAvailableDates();
+  // 今天还没采集时，直接落到最近一个有推送的日期，别停在空页
+  if (AVAILABLE && AVAILABLE.size && !AVAILABLE.has(currentDate)) {
+    currentDate = [...AVAILABLE].sort().pop();
+  }
   els.datePicker.value = currentDate;
   $("prevDay").addEventListener("click", () => shiftDate(-1));
   $("nextDay").addEventListener("click", () => shiftDate(1));

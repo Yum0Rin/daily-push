@@ -119,6 +119,7 @@ button.stat .value { margin-top: 4px; }
   --cf-step: calc(var(--cf-cover) * 0.14);
   --cf-depth: calc(var(--cf-cover) * 0.55);
   --cf-angle: 58deg;
+  position: relative;
   outline: none;
 }
 .cf-viewport {
@@ -148,7 +149,7 @@ button.stat .value { margin-top: 4px; }
     translateX(calc(var(--side) * (var(--cf-gap) + (var(--distance) - 1) * var(--cf-step))))
     translateZ(calc(var(--side) * var(--side) * -1 * var(--cf-depth)))
     rotateY(calc(var(--side) * var(--cf-angle)));
-  opacity: clamp(0, calc(1 - (var(--distance) - 1) * 0.15), 1);
+  opacity: clamp(0, calc(1 - (var(--distance) - 1) * 0.22), 1);
   transition: transform .55s cubic-bezier(.32,.72,0,1), opacity .4s ease;
 }
 .cf-card {
@@ -175,6 +176,20 @@ button.stat .value { margin-top: 4px; }
   padding: 0 6px; border-radius: 7px;
   background: rgba(0, 0, 0, .55); color: #fff;
   font-size: 11px; font-weight: 700; line-height: 1.7; letter-spacing: .04em;
+}
+/* 骰子：贴卡片流右边缘，点一下随机跳到某一首 */
+.cf-dice {
+  position: absolute; right: 0; top: calc(var(--cf-cover) * 0.51);
+  width: 34px; height: 34px; padding: 0; border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 15px; line-height: 1; z-index: 6;
+  transform: translateY(-50%);
+}
+.cf-dice:active { transform: translateY(-50%) scale(.9); }
+.cf-dice.spin { animation: cf-dice-spin .5s ease; }
+@keyframes cf-dice-spin {
+  from { transform: translateY(-50%) rotate(0deg) scale(.82); }
+  to { transform: translateY(-50%) rotate(360deg) scale(1); }
 }
 .cf-bar { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 10px; }
 button.cf-nav { padding: 3px 12px; font-size: 12px; border-radius: 999px; }

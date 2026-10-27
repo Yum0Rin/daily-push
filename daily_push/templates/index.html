@@ -34,6 +34,7 @@
           <ol class="cf-track" id="songs"></ol>
         </div>
       </div>
+      <button type="button" class="ghost cf-dice" id="cfDice" aria-label="随机一首" title="随机一首">🎲</button>
       <div class="cf-bar">
         <button type="button" class="ghost cf-nav" id="cfPrev" aria-label="上一首">◀</button>
         <span class="cf-counter" id="cfCounter"></span>
@@ -44,14 +45,14 @@
     <div class="cf-note" id="cfNote" style="display:none"></div>
   </section>
 
+  <section class="card" id="card-bilirec" style="display:none">
+    <h2>🔥 B站推荐</h2>
+    <ul class="cardgrid" id="biliRecList"></ul>
+  </section>
+
   <section class="card" id="card-bili" style="display:none">
     <h2>📺 B站 UP动态</h2>
     <ul class="cardgrid" id="ups"></ul>
-  </section>
-
-  <section class="card" id="card-bilirec" style="display:none">
-    <h2>🔥 B站推荐（未关注）</h2>
-    <ul class="cardgrid" id="biliRecList"></ul>
   </section>
 
   <section class="card" id="card-xhs" style="display:none">
