@@ -29,7 +29,7 @@
     "recommend": {
       "min_views": 50000,
       "min_like_ratio": 0.07,
-      "limit": 10,
+      "limit": 6,
       "max_pages": 8
     }
   },

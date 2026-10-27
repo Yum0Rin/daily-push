@@ -67,7 +67,7 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
 筛选（策略存 `settings.json` 的 `bilibili.recommend`）：
 - `min_views`（默认 50000）：播放量下限，`>` 比较。
 - `min_like_ratio`（默认 0.07）：点赞率下限（`likes/views`），`>` 比较。
-- `limit`（默认 10）：返回条数。
+- `limit`（默认 6）：返回条数。
 - `max_pages`（默认 8）：最多翻几页；凑不够就返回实际条数（每页间隔 1.2s）。
 - 额外过滤：`goto != "av"`（直播/番剧）、`rcmd_reason.content` 含「广告/赞助」、
   作者命中 `bilibili.exclude`（与关注动态共用同一份屏蔽名单）。
@@ -176,7 +176,7 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 筛选与配置：
 - `xiaohongshu.min_likes`（策略，默认 5000）：点赞数下限。
 - `xiaohongshu.min_collect_ratio`（策略，默认 0.1）：**藏/赞比**下限，`0` = 关闭。
-- `xiaohongshu.limit`（config，默认 10）：返回条数上限（实际 5~10 条，凑不满就返回实际条数）。
+- `xiaohongshu.limit`（config，默认 6）：返回条数上限（凑不满就返回实际条数）。
 - `xiaohongshu.max_pages`（策略，默认 8）：最多翻几页（凑不够就返回实际条数）。
 - `xiaohongshu.ad_keywords`（策略，默认见模块内 `DEFAULT_AD_KEYWORDS`）：命中标题或作者即丢弃。
 - `xiaohongshu.exclude_keywords`（策略）：额外屏蔽词，命中标题或作者即丢弃。
@@ -188,7 +188,7 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 `POST /api/sns/web/v1/feed`（签名同推荐流）取 `collected_count`，按 `收藏/点赞` 过滤：
 收藏相对点赞越高 = 越偏干货/可留存，纯情绪娱乐内容这个比值很低。
 实测 18 条 5k+ 候选的分布：p25 = 0.040、中位 = 0.077、p75 = 0.129、最大 0.455；
-阈值 0.1 约通过 1/3（尖子段），凑 5~10 条需翻 6~8 页。
+阈值 0.1 约通过 1/3（尖子段），凑 6 条一般翻 4~8 页。
 
 > 代价：每条候选多 1 次详情请求，单次采集由约 12 秒增至约 60~70 秒（30~35 次请求）。
 > 详情请求失败时按「比例未知」**放行**，不会因为一次失败把内容丢掉。

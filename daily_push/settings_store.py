@@ -256,7 +256,7 @@ def _apply_defaults(cfg):
     rec = cfg["bilibili"]["recommend"]
     rec.setdefault("min_views", 50000)
     rec.setdefault("min_like_ratio", 0.07)
-    rec.setdefault("limit", 10)
+    rec.setdefault("limit", 6)
     rec.setdefault("max_pages", 8)
     cfg.setdefault("qq", {})
     cfg["qq"].setdefault("accounts", [])
@@ -268,7 +268,7 @@ def _apply_defaults(cfg):
     cfg["wechat"].setdefault("top_groups", 3)
     cfg["wechat"].setdefault("max_per_group", 5)
     cfg.setdefault("xiaohongshu", {})
-    cfg["xiaohongshu"].setdefault("limit", 10)
+    cfg["xiaohongshu"].setdefault("limit", 6)
     cfg["xiaohongshu"].setdefault("min_likes", 5000)
     cfg["xiaohongshu"].setdefault("min_collect_ratio", 0.1)
     cfg["xiaohongshu"].setdefault("max_pages", 8)
