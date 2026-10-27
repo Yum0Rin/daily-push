@@ -18,7 +18,7 @@
 header: 品牌标题 + 主题切换 | 日期条（◀ datePicker ▶）
 main:
   summary       # 顶部统计卡（歌曲/B站/公众号 条数，点击居中到对应卡片）
-  card-music    # 🎵 网易云日推 Top N（带封面/播放外链）
+  card-music    # 🎵 网易云日推：3D 卡片流（景深左右切换，循环）+ 焦点歌曲信息条
   card-bili     # 📺 B站关注UP（最近视频：标题链接+UP名+时间，同公众号排版）
   card-mp       # 📰 微信公众号推文（作者+标题+时间，外链跳转，通知类弱化置底）
   emptyState    # 无数据提示（登录时自动采集一次）
@@ -37,7 +37,17 @@ main:
   公众号卡片，避免「暂无推送记录」与公众号说明两个提示重复矛盾。
 - `renderBili`：B站卡片复用公众号排版（标题链接 + `u.author` 下一行 + `u.created` 时间），
   初始化时给 `#ups` 加上 `articles` class 以复用样式。
-- `renderMusic`：歌手/专辑下一行展示热评（`s.hot_comment`，双引号包裹）。
+- `renderMusic`：渲染 3D 卡片流（见下节「网易云卡片流」），信息（歌名/歌手·专辑/❤️💬/热评）
+  放在卡片流下方的 `#cfCaption` 里，点卡片本身即跳转网易云播放页。
+- **网易云卡片流**（2026-10-27 起）：`#cfMusic` 为容器，`.cf-viewport > .cf-stage > ol.cf-track > li.cf-item`。
+  - 变换公式参考 GitHub [ikabeee/coverflow](https://github.com/ikabeee/coverflow)（vanilla + CSS-3D）：
+    JS 只给每张卡写 `--side`（±1/0）与 `--distance`（离焦点几张），
+    位移/后撤/`rotateY`/淡出/`z-index` 全在 CSS 里算（`style.css` 的 `.cf-*`），**不做尺寸测量**。
+  - **循环**：`CF.cur` 按张数取模，首尾相接；邻居距离用 `cfOffset()` 取环形最短路径，
+    所以「第 1 首往左」是最后一首，「最后一首往右」回到第 1 首，动画只挪一格。
+  - 交互：◀ ▶ 按钮、`#cfMusic` 上的 ← → 方向键、横向拖拽/滑动（≥45px）、点两侧卡片切到那张、
+    点正中卡片跳转外链；右上角 🎲（`#cfDice`）随机跳到另一首（`cfRandom()`，带旋转动画）。
+  - 空/错误态不塞进 3D 舞台：隐藏 `#cfMusic`，改用 `#cfNote` 显示 `errBlock` / `module-note`。
 - summary 点击：手动计算 `scrollTo`（卡片顶部对齐到吸顶标题栏下方），保证卡片标题可见。
 - 采集：无手动按钮；登录时自动采集一次（`tools/run_daily.py`），07:30 由云端采集；刷新页面即可看到。
 - 主题：`data-theme=dark/light`，持久化到 `localStorage.theme`。
@@ -47,6 +57,13 @@ main:
 ## 样式注意
 
 - `.articles li` / `.articles .ainfo` 是公众号与 B站共用排版（标题链接 + 作者下一行 + 时间）。
+- 网易云卡片流（`.cf`）全靠 CSS 变量调形：`--cf-cover`（卡片边长，`clamp(150px,38vw,250px)`）、
+  `--cf-gap` / `--cf-step`（左右间距与层间步进）、`--cf-depth`（后撤深度）、`--cf-angle`（旋转角 58deg）、
+  `--cf-stage-w`（720px 舞台最大宽度，骰子按它对齐右缘）。改形只动这几个变量。
+- 边缘淡出用 `.cf-viewport` 的 `mask`（**不要**把它挪到带 `perspective` 的 `.cf-stage` 上，
+  那会把 3D 子树拍平）；横向溢出由 `overflow:hidden` 兜住。
+- 浅色主题下非焦点卡片的压暗层更淡（`[data-theme="light"] .cf-item:not(.is-active) .cf-card::after`），
+  焦点卡阴影也单独调过，否则白底上会发灰。
 - 徽章：`.badge-updated / .badge-idle / .badge-err`（当前 B站卡已不用）。
 - QQ / 微信卡片样式已无引用（采集保留，前端移除）。
 
@@ -61,6 +78,17 @@ main:
 - 仪表盘右上角新增 ⚙️ 入口；**静态站模式（`window.__DAYS__` 存在）下由 `app.js` 隐藏**，避免 Pages 404。
 
 ## 变更记录
+
+### 2026-10-27
+
+- **网易云日推改为 3D 卡片流**（景深左右切换）：纵向列表 → 卡片视图。封面为卡片主体，
+  歌名/歌手·专辑/❤️💬/热评统一移到卡片流下方的信息条；**卡片上不显示序号**，信息条标题也不加序号。
+  点正中卡片直接跳网易云播放页（原「▶ 在网易云打开」文字链已删，避免重复入口）。
+- 卡片流**循环**：首尾相接，第 1 首往左 = 最后一首，最后一首往右回到第 1 首（`CF.cur` 取模 + 环形距离）。
+- 卡片流右缘新增 🎲 随机按钮，点一下随机跳到另一首（带旋转动画）；另有 ◀ ▶ 按钮、
+  ← → 方向键、横向拖拽/滑动、点两侧卡片切换。
+- 空态/错误态改用 `#cfNote`，不再塞进 3D 舞台。旧版（纵向列表）快照见
+  `历史版本/music-coverflow-v1-20261027/`。
 
 ### 2026-09-15
 

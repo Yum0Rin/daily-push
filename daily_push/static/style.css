@@ -114,16 +114,19 @@ button.stat .value { margin-top: 4px; }
 /* 网易云日推：3D 卡片视图（景深左右切换）
    公式取自 GitHub ikabeee/coverflow：卡片只带 --side / --distance，位移·后撤·旋转·淡出全在 CSS 里算。 */
 .cf {
-  --cf-cover: clamp(150px, 40vw, 216px);
+  --cf-cover: clamp(150px, 38vw, 250px);
   --cf-gap: calc(var(--cf-cover) * 0.60);
   --cf-step: calc(var(--cf-cover) * 0.14);
   --cf-depth: calc(var(--cf-cover) * 0.55);
   --cf-angle: 58deg;
+  --cf-stage-w: 720px;
   position: relative;
   outline: none;
 }
 .cf-viewport {
   position: relative;
+  max-width: var(--cf-stage-w);
+  margin: 0 auto;
   height: calc(var(--cf-cover) * 1.02);
   overflow: hidden;
   -webkit-mask: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
@@ -149,11 +152,11 @@ button.stat .value { margin-top: 4px; }
     translateX(calc(var(--side) * (var(--cf-gap) + (var(--distance) - 1) * var(--cf-step))))
     translateZ(calc(var(--side) * var(--side) * -1 * var(--cf-depth)))
     rotateY(calc(var(--side) * var(--cf-angle)));
-  opacity: clamp(0, calc(1 - (var(--distance) - 1) * 0.22), 1);
+  opacity: clamp(0, calc(1 - (var(--distance) - 1) * 0.18), 1);
   transition: transform .55s cubic-bezier(.32,.72,0,1), opacity .4s ease;
 }
 .cf-card {
-  display: block; position: relative;
+  display: block; position: relative; cursor: pointer;
   width: 100%; height: 100%;
   border-radius: 12px; overflow: hidden;
   background: var(--card-2);
@@ -166,20 +169,19 @@ button.stat .value { margin-top: 4px; }
 .cf-item:not(.is-active) .cf-card::after {
   content: ""; position: absolute; inset: 0; background: #000; opacity: .26;
 }
+[data-theme="light"] .cf-item:not(.is-active) .cf-card::after { opacity: .13; }
+[data-theme="light"] .cf-item.is-active .cf-card {
+  box-shadow: 0 14px 30px -12px rgba(28, 31, 39, .38), 0 0 0 1px rgba(47, 155, 138, .55);
+}
 .cf-art { display: block; width: 100%; height: 100%; object-fit: cover; }
 .cf-ph {
   display: flex; align-items: center; justify-content: center;
   height: 100%; font-size: 46px; color: var(--muted);
 }
-.cf-num {
-  position: absolute; left: 7px; top: 7px;
-  padding: 0 6px; border-radius: 7px;
-  background: rgba(0, 0, 0, .55); color: #fff;
-  font-size: 11px; font-weight: 700; line-height: 1.7; letter-spacing: .04em;
-}
 /* 骰子：贴卡片流右边缘，点一下随机跳到某一首 */
 .cf-dice {
-  position: absolute; right: 0; top: calc(var(--cf-cover) * 0.51);
+  position: absolute; top: calc(var(--cf-cover) * 0.51);
+  right: max(0px, calc((100% - var(--cf-stage-w)) / 2 - 6px));
   width: 34px; height: 34px; padding: 0; border-radius: 50%;
   display: grid; place-items: center;
   font-size: 15px; line-height: 1; z-index: 6;
@@ -198,7 +200,8 @@ button.cf-nav { padding: 3px 12px; font-size: 12px; border-radius: 999px; }
   font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
 }
 .cf-caption {
-  min-height: 92px; margin-top: 12px; padding: 12px 14px;
+  max-width: 520px;
+  min-height: 92px; margin: 12px auto 0; padding: 12px 14px;
   background: var(--card-2); border: 1px solid var(--border); border-radius: 12px;
   text-align: center;
 }
@@ -208,11 +211,6 @@ button.cf-nav { padding: 3px 12px; font-size: 12px; border-radius: 999px; }
   display: flex; align-items: center; justify-content: center; gap: 7px;
   flex-wrap: wrap; font-size: 15px; font-weight: 700;
 }
-.cf-ttl .cf-rank {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 19px; height: 19px; border-radius: 50%;
-  background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
-}
 .cf-sub { margin-top: 2px; font-size: 13px; color: var(--muted); }
 .cf-stats { display: flex; justify-content: center; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--muted); }
 .cf-stats .cstat { white-space: nowrap; }
@@ -220,11 +218,6 @@ button.cf-nav { padding: 3px 12px; font-size: 12px; border-radius: 999px; }
   margin: 8px auto 0; max-width: 46em;
   font-size: 13px; font-style: italic; line-height: 1.5; color: var(--muted);
 }
-.cf-play {
-  display: inline-block; margin-top: 10px;
-  font-size: 13px; color: var(--green-darker); text-decoration: none;
-}
-.cf-play:hover { text-decoration: underline; }
 @media (prefers-reduced-motion: reduce) {
   .cf-item { transition: none; }
   .cf-caption.pulse { animation: none; }
@@ -316,7 +309,6 @@ button.cf-nav { padding: 3px 12px; font-size: 12px; border-radius: 999px; }
 .cardgrid .gtitle:hover { color: var(--accent-2); }
 .cardgrid .gmeta { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--muted); }
 .cardgrid .gmeta .author { color: var(--green-deep); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cardgrid .gmeta .xhs-collect { margin-left: auto; color: var(--muted); white-space: nowrap; }
 .cardgrid > .module-note, .cardgrid > .module-err { grid-column: 1 / -1; }
 
 .empty { text-align: center; color: var(--muted); padding: 40px; }

@@ -177,7 +177,6 @@ function renderMusic(data, hasDay) {
           ${pic
             ? `<img class="cf-art" src="${esc(pic)}" alt="" draggable="false" loading="lazy" onerror="this.remove()">`
             : `<span class="cf-ph">🎵</span>`}
-          <span class="cf-num">${String(i + 1).padStart(2, "0")}</span>
         </${tag}>
       </li>`;
   }).join("");
@@ -250,11 +249,10 @@ function cfRenderCaption() {
     ? `<div class="cf-stats">${fmtCount(s.favorite_count, "❤️")}${fmtCount(s.comment_count, "💬")}</div>`
     : "";
   els.cfCaption.innerHTML = `
-    <div class="cf-ttl"><span class="cf-rank">${CF.cur + 1}</span>${esc(s.name)}</div>
+    <div class="cf-ttl">${esc(s.name)}</div>
     <div class="cf-sub">${esc(s.artists || "")}${s.album ? " · " + esc(s.album) : ""}</div>
     ${stats}
-    ${s.hot_comment ? `<div class="cf-quote">“${esc(s.hot_comment)}”</div>` : ""}
-    ${s.url ? `<a class="cf-play" href="${esc(s.url)}" target="_blank" rel="noopener">▶ 在网易云打开</a>` : ""}`;
+    ${s.hot_comment ? `<div class="cf-quote">“${esc(s.hot_comment)}”</div>` : ""}`;
   els.cfCaption.classList.remove("pulse");
   void els.cfCaption.offsetWidth;
   els.cfCaption.classList.add("pulse");
@@ -353,7 +351,6 @@ function renderXhs(data, hasDay) {
   }
   els.xhsList.innerHTML = list.map((n) => {
     const pic = (n.pic || "").replace(/^http:/, "https:");
-    const icon = n.kind === "video" ? "🎬" : "🖼";
     const likes = n.likes_text || String(n.likes || "");
     return `
       <li class="gcard">
@@ -364,8 +361,7 @@ function renderXhs(data, hasDay) {
         <div class="ginfo">
           <a class="gtitle" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title || "（无标题）")}</a>
           <div class="gmeta">
-            <span class="author">${icon} ${esc(n.author)}</span>
-            ${n.collects ? `<span class="xhs-collect">⭐ ${esc(fmtViews(n.collects))}</span>` : ""}
+            <span class="author">${esc(n.author)}</span>
             ${n.created ? `<span class="time">${esc(fmtCreated(n.created))}</span>` : ""}
           </div>
         </div>
