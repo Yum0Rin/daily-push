@@ -61,7 +61,7 @@ class TagFilterTest(unittest.TestCase):
 
     def test_defaults_present(self):
         for k in ("游戏", "娱", "热点", "vibe", "英语", "抽象", "推荐", "唠嗑",
-                  "零基础", "抖音", "华语乐坛", "讲解", "作文", "ai"):
+                  "零基础", "抖音", "华语乐坛", "讲解", "作文", "AI"):
             self.assertIn(k, DEFAULT_BLOCKED_TAGS)
 
 
@@ -72,8 +72,12 @@ class AiFilterTest(unittest.TestCase):
         self.assertTrue(c._dropped(_item(hashtags=("aigc",))))
 
     def test_empty_ai_list_disables(self):
+        # 只清空 ai_keywords 时，标题里的「AI」仍会被 blocked_tags 里的 AI 挡掉
         c = _collector(ai_keywords=[])
-        self.assertFalse(c._dropped(_item(desc="这条是AI生成的短片")))
+        self.assertTrue(c._dropped(_item(desc="这条是AI生成的短片")))
+        # 两处都清空才彻底关闭
+        c2 = _collector(ai_keywords=[], blocked_tags=[])
+        self.assertFalse(c2._dropped(_item(desc="这条是AI生成的短片")))
 
     def test_defaults_present(self):
         self.assertIn("aigc", DEFAULT_AI_KEYWORDS)
@@ -88,10 +92,18 @@ class StoredEntryFilterTest(unittest.TestCase):
         e2 = {"title": "普通标题", "author": "作者", "tags": ["作文"]}
         self.assertTrue(is_blocked_entry(e2))
 
-    def test_title_alone_does_not_hit_tag_rules(self):
-        # 标签屏蔽只匹配 tags/hashtags；标题里出现同样字眼不算（要屏蔽标题得用 exclude_keywords）
+    def test_blocked_in_title(self):
         e = {"title": "【作文55+】每天睁开眼", "author": "作者", "tags": ["校园教育"]}
-        self.assertFalse(is_blocked_entry(e))
+        self.assertTrue(is_blocked_entry(e))
+        e2 = {"title": "【深度讲解】流水不争先", "author": "作者", "tags": ["人文社科"]}
+        self.assertTrue(is_blocked_entry(e2))
+
+    def test_ai_title_is_case_sensitive(self):
+        self.assertTrue(is_blocked_entry({"title": "AI绘画教程", "tags": ["科技"]}))
+        # 英文单词里的 ai 不算（again / said）
+        self.assertFalse(is_blocked_entry({"title": "You know how I do it again", "tags": ["舞蹈"]}))
+        # 话题/标签仍忽略大小写
+        self.assertTrue(is_blocked_entry({"title": "普通", "tags": ["aigc"]}))
 
     def test_normal_entry_kept(self):
         e = {"title": "一段舞蹈", "author": "某某", "tags": ["舞蹈", "街舞"]}

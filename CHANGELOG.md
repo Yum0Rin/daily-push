@@ -11,7 +11,7 @@
   纯 Python + 本机 Firefox 登录 Cookie 即可直连（缺公共参数会 404 `Unsupported path(Janus)`）。
 - 口径（2026-10-27 定）：点赞 ≥ **20000**、**藏/赞比 ≥ 0.08**（收藏数接口自带，无额外请求）、
   最多 **6** 条；`is_ads` / `is_life_item`（团购探店）直接丢弃。
-- **标签屏蔽**：`video_tag[].tag_name` 或话题 `hashtag_name` 命中即丢弃，默认词表
+- **标签屏蔽**：`video_tag[].tag_name`、话题 `hashtag_name` 或**标题**命中即丢弃（标题里纯英文词区分大小写），默认词表
   `游戏 / 娱 / 热点 / vibe / 英语 / 抽象 / 推荐 / 唠嗑 / 零基础 / 抖音 / 华语乐坛 / 讲解 / 作文 / AI`
   （`douyin.blocked_tags`，设置页可逗号分隔编辑）。
 - **AI 内容只能启发式**：推荐流响应里没有任何 AIGC 标记（`aigc_info`/`is_aigc` 均不存在），

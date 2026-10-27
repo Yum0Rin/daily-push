@@ -50,7 +50,7 @@
   小红书接口不返回浏览量，只能用收藏/点赞作质量代理，开启后每条候选多一次详情请求。
   比值只用于筛选，页面只展示**点赞数 + 收藏数**两个原始数字。
 - `douyin.min_collect_ratio` 同为**藏/赞比**（默认 0.08），但抖音的收藏数是推荐流自带的，
-  **不产生额外请求**；`douyin.blocked_tags` 命中视频分类标签或话题名即整条丢弃
+  **不产生额外请求**；`douyin.blocked_tags` 命中视频分类标签、话题名或标题即整条丢弃
   （设置页里用逗号分隔编辑）。
 - 密钥：`netease.{mode,cookie,base_url}`、`bilibili.sessdata`、`email.*`、`site.*`、
   `xiaohongshu.{cookie,limit}`、`douyin.{cookie,limit}`、`port`、`data_dir`。

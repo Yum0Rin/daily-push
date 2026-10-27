@@ -255,8 +255,9 @@ interact_info`，**没有任何广告/赞助标记**（网页上的「赞助」�
 - `douyin.min_digg`（策略，默认 20000）：点赞数下限。
 - `douyin.min_collect_ratio`（策略，默认 0.08）：**藏/赞比**下限，`0` = 关闭。
 - `douyin.blocked_tags`（策略，默认 游戏 / 娱 / 热点 / vibe / 英语 / 抽象 / 推荐 / 唠嗑 / 零基础 / 抖音 / 华语乐坛 / 讲解 / 作文 / AI）：
-  命中 `video_tag[].tag_name` **或** 话题 `hashtag_name`（子串、忽略大小写）即丢弃；
-  `AI` 是子串匹配，会连带命中 `#aigc` / `#aivideo` 这类话题。
+  命中 `video_tag[].tag_name`、话题 `hashtag_name` **或标题**即丢弃（子串）：
+  标签/话题忽略大小写（`AI` 会连带命中 `#aigc` / `#aivideo`），标题里的纯英文词**区分大小写**
+  （`AI` 只命中大写「AI」，不会误伤 again / said）。
   改完屏蔽词可跑 `python tools/purge_ignored.py --no-push` 按同一套规则重算历史（`is_blocked_entry()`）。
 - `douyin.ai_keywords`（策略，默认见模块内 `DEFAULT_AI_KEYWORDS`）：命中文案/作者/话题即丢弃。
 - `douyin.exclude_keywords`（策略）：额外屏蔽词，命中文案或作者即丢弃。

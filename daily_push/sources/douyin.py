@@ -13,8 +13,9 @@
 - ``statistics.collect_count / digg_count >= min_collect_ratio``（默认 0.08，``0`` = 关闭）；
 - **标签屏蔽**：``video_tag[].tag_name`` 或话题 ``text_extra[].hashtag_name``
   命中 ``blocked_tags``（默认 游戏 / 娱 / 热点 / vibe / 英语 / 抽象 / 推荐 /
-  唠嗑 / 零基础 / 抖音 / 华语乐坛 / 讲解 / 作文 / ai）即丢弃；
-  「ai」是子串匹配，会连带命中 #aigc / #aivideo 这类话题（含 ai 字母的拉丁话题也会中）；
+  唠嗑 / 零基础 / 抖音 / 华语乐坛 / 讲解 / 作文 / AI）即丢弃；
+  标签/话题匹配忽略大小写（`AI` 会连带命中 #aigc / #aivideo）；标题匹配对纯英文词**区分大小写**，
+  所以 `AI` 只命中大写的「AI」，不会误伤 again / said 这类单词。
 - **AI 内容**：接口不下发 AIGC 标记（实测 ``aigc_info`` / ``is_aigc`` / ``AI生成`` 都不存在，
   仅 ``music.extra.aigc_clip`` 这个与成片无关的音乐片段字段），只能按文案+话题关键词启发式
   过滤（``ai_keywords``），会漏判——抖音官方「内容由AI生成」标签不在推荐流响应里；
@@ -51,7 +52,7 @@ _BASE_QUERY = (
 # 默认屏蔽标签词：命中 video_tag 或话题名即丢弃（子串、忽略大小写）
 DEFAULT_BLOCKED_TAGS = ["游戏", "娱", "热点", "vibe", "英语", "抽象",
                         "推荐", "唠嗑", "零基础", "抖音", "华语乐坛",
-                        "讲解", "作文", "ai"]
+                        "讲解", "作文", "AI"]
 
 # AI 内容启发式关键词（接口无 AIGC 标记，只能查文案/话题）
 DEFAULT_AI_KEYWORDS = [
@@ -63,9 +64,24 @@ _AWEME_ID_RE = re.compile(r"/video/(\d{8,})")
 
 
 def _lower(value, default):
-    """取配置里的词表并小写化；``None``/缺省 → 用默认表；``[]`` → 关闭该项。"""
+    """取配置里的词表；``None``/缺省 → 用默认表；``[]`` → 关闭该项。"""
     raw = default if value is None else value
-    return [str(k).lower() for k in raw if str(k).strip()]
+    return [str(k) for k in raw if str(k).strip()]
+
+
+def _blocked_hit(words, tags, title):
+    """屏蔽词判定：标签/话题**忽略大小写**；标题里对纯英文词**区分大小写**
+    （``AI`` 能命中「AI绘画」，但不会误伤 again / said 这种词）。"""
+    lowered = [t.lower() for t in tags]
+    if any(w.lower() in t for w in words for t in lowered):
+        return True
+    for w in words:
+        if w.isascii():
+            if w in title:          # 保留大小写
+                return True
+        elif w in title:
+            return True
+    return False
 
 
 def is_blocked_entry(entry, blocked_tags=None, ai_keywords=None, exclude_keywords=None):
@@ -78,10 +94,9 @@ def is_blocked_entry(entry, blocked_tags=None, ai_keywords=None, exclude_keyword
     title = str(entry.get("title") or "")
     author = str(entry.get("author") or "")
     blocked = _lower(blocked_tags, DEFAULT_BLOCKED_TAGS)
-    ai = _lower(ai_keywords, DEFAULT_AI_KEYWORDS)
+    ai = [w.lower() for w in _lower(ai_keywords, DEFAULT_AI_KEYWORDS)]
     exclude = [str(k) for k in (exclude_keywords or []) if str(k).strip()]
-    lowered = [t.lower() for t in tags]
-    if any(k in t for t in lowered for k in blocked):
+    if _blocked_hit(blocked, tags, title):
         return True
     text = f"{title} {author} {' '.join(tags)}".lower()
     if any(k in text for k in ai):
