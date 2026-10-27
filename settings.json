@@ -90,8 +90,8 @@
   },
   "xiaohongshu": {
     "min_likes": 5000,
-    "min_collect_ratio": 0.04,
-    "max_pages": 6,
+    "min_collect_ratio": 0.1,
+    "max_pages": 8,
     "exclude_keywords": []
   }
 }

@@ -213,7 +213,7 @@ function renderXhs(data, hasDay) {
           <a class="gtitle" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title || "（无标题）")}</a>
           <div class="gmeta">
             <span class="author">${icon} ${esc(n.author)}</span>
-            ${n.collects ? `<span class="xhs-collect" title="收藏 / 点赞 = ${n.collect_ratio == null ? "?" : Math.round(n.collect_ratio * 100) + "%"}">⭐ ${esc(fmtViews(n.collects))}</span>` : ""}
+            ${n.collects ? `<span class="xhs-collect">⭐ ${esc(fmtViews(n.collects))}</span>` : ""}
             ${n.created ? `<span class="time">${esc(fmtCreated(n.created))}</span>` : ""}
           </div>
         </div>
@@ -242,12 +242,11 @@ function renderBiliRec(data, hasDay) {
   }
   if (list.length === 0) {
     els.biliRecList.innerHTML =
-      `<div class="module-note">🔥 今日暂无符合条件的推荐（未关注 + 播放量/点赞率达标）。</div>`;
+      `<div class="module-note">🔥 今日暂无符合条件的推荐（未关注 + 播放量、点赞数达标）。</div>`;
     return;
   }
   els.biliRecList.innerHTML = list.map((u) => {
     const pic = (u.pic || "").replace(/^http:/, "https:");
-    const pct = ((Number(u.ratio) || 0) * 100).toFixed(1);
     return `
       <li class="gcard">
         <a class="gthumb" href="${esc(u.url)}" target="_blank" rel="noopener">
@@ -258,7 +257,7 @@ function renderBiliRec(data, hasDay) {
           <a class="gtitle" href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
           <div class="gmeta">
             ${u.author ? `<span class="author">${esc(u.author)}</span>` : ""}
-            <span class="time">♥ ${pct}%</span>
+            <span class="time">♥ ${esc(fmtViews(u.likes))}</span>
           </div>
         </div>
       </li>`;

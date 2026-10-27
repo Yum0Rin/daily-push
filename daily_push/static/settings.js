@@ -191,7 +191,7 @@ const PARAMS = [
   { path: ["bilibili", "recommend", "limit"], label: "B站推荐 · 条数", type: "number" },
   { path: ["bilibili", "recommend", "max_pages"], label: "B站推荐 · 最多翻页（每页 20 条）", type: "number" },
   { path: ["xiaohongshu", "min_likes"], label: "小红书 · 最低点赞数", type: "number" },
-  { path: ["xiaohongshu", "min_collect_ratio"], label: "小红书 · 最低藏赞比（0.04 = 4%，0 关闭）", type: "number", float: true },
+  { path: ["xiaohongshu", "min_collect_ratio"], label: "小红书 · 最低藏赞比（0.1 = 10%，0 关闭）", type: "number", float: true },
   { path: ["xiaohongshu", "max_pages"], label: "小红书 · 最多翻页（每页 20 条）", type: "number" },
   { path: ["wechat", "max_articles"], label: "公众号最多条数（0=不限）", type: "number" },
   { path: ["wechat", "mp_cutoff_hour"], label: "公众号窗口起点（时）", type: "number" },

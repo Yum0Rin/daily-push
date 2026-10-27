@@ -270,8 +270,8 @@ def _apply_defaults(cfg):
     cfg.setdefault("xiaohongshu", {})
     cfg["xiaohongshu"].setdefault("limit", 10)
     cfg["xiaohongshu"].setdefault("min_likes", 5000)
-    cfg["xiaohongshu"].setdefault("min_collect_ratio", 0.04)
-    cfg["xiaohongshu"].setdefault("max_pages", 6)
+    cfg["xiaohongshu"].setdefault("min_collect_ratio", 0.1)
+    cfg["xiaohongshu"].setdefault("max_pages", 8)
     cfg.setdefault("max_songs", 5)
     cfg.setdefault("data_dir", "data")
     return cfg

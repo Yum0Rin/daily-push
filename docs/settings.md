@@ -45,8 +45,9 @@
   `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour,reserve}`、
   `xiaohongshu.{min_likes,min_collect_ratio,max_pages,ad_keywords,exclude_keywords}`。
 - 数量上限 `max_songs` / `max_videos` / `max_articles` 为 **0 表示不限**（只影响之后采集，不改历史）。
-- `xiaohongshu.min_collect_ratio` 为**藏/赞比**下限（默认 0.04，`0` 关闭）：
+- `xiaohongshu.min_collect_ratio` 为**藏/赞比**下限（默认 0.1，`0` 关闭）：
   小红书接口不返回浏览量，只能用收藏/点赞作质量代理，开启后每条候选多一次详情请求。
+  比值只用于筛选，页面只展示**点赞数 + 收藏数**两个原始数字。
 - 密钥：`netease.{mode,cookie,base_url}`、`bilibili.sessdata`、`email.*`、`site.*`、
   `xiaohongshu.{cookie,limit}`、`port`、`data_dir`。
 
