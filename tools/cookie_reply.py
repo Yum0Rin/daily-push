@@ -3,8 +3,8 @@
 流程：
 1. IMAP 读取「每日推送」报错邮件的回复（按主题里的 ref 标记精确匹配）。
 2. 从回复正文剥离邮件客户端自动附带的引用原文，取第一段。
-3. 多个来源按行顺序解析（netease 在前、bilibili 在后，不带前缀）。
-4. 验证：网易云 /user/account；B站 /x/web-interface/nav。
+3. 多个来源按行顺序解析（netease 在前、bilibili 其次、xiaohongshu 最后，不带前缀）。
+4. 验证：网易云 /user/account；B站 /x/web-interface/nav；小红书推荐流（签名+登录态）。
 5. 落地：本地写 config.json；云端用 gh secret set（见 cookie_repair_cloud.py）。
 
 SMTP/IMAP 凭据：优先环境变量 SMTP_USER/SMTP_PASS（云端），否则 config.json 的 email 段。
@@ -105,6 +105,22 @@ def _normalize_cookie(source, value):
             m = re.search(r"SESSDATA=([^;\s]+)", v)
             v = m.group(1) if m else v
         return v if re.match(r"^[A-Za-z0-9%_,\-.\*]+$", v) else None
+    if source == "xiaohongshu":
+        # 必须是整段 Cookie（a1 + web_session 都要），只给 web_session 生成不了签名
+        v = re.sub(r"^\s*cookie\s*[:：]\s*", "", v, flags=re.I)
+        v = " ".join(v.split())
+        if "=" not in v:
+            return f"web_session={v}" if re.fullmatch(r"[A-Za-z0-9%_\-\.]+", v) else None
+        parts = []
+        for seg in v.split(";"):
+            seg = seg.strip()
+            if "=" not in seg:
+                continue
+            k, val = seg.split("=", 1)
+            k, val = k.strip(), val.strip()
+            if k and val:
+                parts.append(f"{k}={val}")
+        return "; ".join(parts) or None
     return v
 
 
@@ -202,11 +218,22 @@ def test_bilibili_sessdata(sessdata):
         return False, f"B站验证请求失败：{e}"
 
 
+def test_xiaohongshu_cookie(cookie):
+    """用新 Cookie 打一次推荐流验证（签名 + 登录态一起测）。"""
+    try:
+        from daily_push.sources.xiaohongshu import probe_login
+    except Exception as e:
+        return False, f"小红书验证模块不可用：{e}"
+    return probe_login(cookie)
+
+
 def test_cookie(source, value, base_url="http://localhost:3000"):
     if source == "netease":
         return test_netease_cookie(value, base_url)
     if source == "bilibili":
         return test_bilibili_sessdata(value)
+    if source == "xiaohongshu":
+        return test_xiaohongshu_cookie(value)
     return False, f"未知来源：{source}"
 
 
@@ -222,6 +249,9 @@ def apply_local_config(updates):
     if "bilibili" in updates:
         bilibili["sessdata"] = updates["bilibili"]
         changed.append("bilibili.sessdata")
+    if "xiaohongshu" in updates:
+        cfg.setdefault("xiaohongshu", {})["cookie"] = updates["xiaohongshu"]
+        changed.append("xiaohongshu.cookie")
     if changed:
         with open(CONFIG_FILE, "w", encoding="utf-8") as f:
             json.dump(cfg, f, ensure_ascii=False, indent=2)
@@ -234,7 +264,7 @@ def is_cookie_error(source, error):
     netease 仅在 api 模式（NeteaseCloudMusicApi+Cookie）下才可邮件修复；
     ncm-cli 模式登录失效只能手动 `ncm-cli login`，不触发邮件轮询。
     """
-    if source not in ("netease", "bilibili"):
+    if source not in ("netease", "bilibili", "xiaohongshu"):
         return False
     if source == "netease":
         mode = (os.environ.get("NETEASE_MODE") or _config().get("netease", {}).get("mode") or "api")

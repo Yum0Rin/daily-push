@@ -35,20 +35,23 @@ function toast(msg, ok) {
 
 // --------------------------------------------------------------- auth cards
 const SOURCES = [
-  { key: "netease", label: "网易云",
+  { key: "netease", label: "网易云", field: "cookie",
     tip: "粘贴 MUSIC_U=... 或浏览器里的整段 Cookie；保存前会先验证。",
     input: "粘贴 MUSIC_U=... 或整段 Cookie" },
-  { key: "bilibili", label: "B站",
+  { key: "bilibili", label: "B站", field: "sessdata",
     tip: "粘贴 SESSDATA 值或整段 Cookie；保存前会先验证。",
     input: "粘贴 SESSDATA 值或整段 Cookie" },
+  { key: "xiaohongshu", label: "小红书", field: "cookie",
+    tip: "必须粘贴浏览器里的整段 Cookie（至少含 a1=... 和 web_session=...），只给 web_session 无法生成签名；保存前会先验证。",
+    input: "粘贴整段 Cookie（含 a1= 与 web_session=）" },
 ];
 
 function renderAuth() {
   const grid = $("authGrid");
   grid.innerHTML = SOURCES.map((s) => {
     const info = state.secrets[s.key] || {};
-    const configured = s.key === "netease" ? info.cookie_configured : info.sessdata_configured;
-    const masked = s.key === "netease" ? info.cookie_masked : info.sessdata_masked;
+    const configured = info[s.field + "_configured"];
+    const masked = info[s.field + "_masked"];
     return `
       <div class="authcard" data-src="${s.key}">
         <div class="authhead">
@@ -183,6 +186,12 @@ const PARAMS = [
   { path: ["bilibili", "max_videos"], label: "B站最多条数（0=不限）", type: "number" },
   { path: ["bilibili", "feed_pages"], label: "B站动态翻页数（每页上限约20条）", type: "number" },
   { path: ["bilibili", "reserve"], label: "B站预留条数（隐藏缓冲）", type: "number" },
+  { path: ["bilibili", "recommend", "min_views"], label: "B站推荐 · 最低播放量", type: "number" },
+  { path: ["bilibili", "recommend", "min_like_ratio"], label: "B站推荐 · 最低点赞率（0.07 = 7%）", type: "number", float: true },
+  { path: ["bilibili", "recommend", "limit"], label: "B站推荐 · 条数", type: "number" },
+  { path: ["bilibili", "recommend", "max_pages"], label: "B站推荐 · 最多翻页（每页 20 条）", type: "number" },
+  { path: ["xiaohongshu", "min_likes"], label: "小红书 · 最低点赞数", type: "number" },
+  { path: ["xiaohongshu", "max_pages"], label: "小红书 · 最多翻页（每页 20 条）", type: "number" },
   { path: ["wechat", "max_articles"], label: "公众号最多条数（0=不限）", type: "number" },
   { path: ["wechat", "mp_cutoff_hour"], label: "公众号窗口起点（时）", type: "number" },
   { path: ["wechat", "reserve"], label: "公众号预留条数（隐藏缓冲）", type: "number" },
@@ -207,7 +216,7 @@ async function saveParams() {
   $("paramGrid").querySelectorAll("input[data-param]").forEach((el) => {
     const p = PARAMS[+el.dataset.param];
     let val = el.value.trim();
-    if (p.type === "number") val = parseInt(val, 10);
+    if (p.type === "number") val = p.float ? parseFloat(val) : parseInt(val, 10);
     let node = policy;
     p.path.forEach((k, i) => {
       if (i === p.path.length - 1) node[k] = val;

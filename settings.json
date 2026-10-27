@@ -25,7 +25,13 @@
     "recent_days": 1,
     "max_videos": 0,
     "feed_pages": 2,
-    "reserve": 3
+    "reserve": 3,
+    "recommend": {
+      "min_views": 50000,
+      "min_like_ratio": 0.07,
+      "limit": 10,
+      "max_pages": 8
+    }
   },
   "wechat": {
     "exclude_keywords": [

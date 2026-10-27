@@ -25,7 +25,8 @@ from tools.notify_email import send_email  # noqa: E402
 
 POLL_INTERVAL = 600  # 10 分钟
 REPO = os.environ.get("GITHUB_REPOSITORY", "").strip() or "Yum0Rin/daily-push"
-SECRET_NAMES = {"netease": "NETEASE_COOKIE", "bilibili": "BILIBILI_SESSDATA"}
+SECRET_NAMES = {"netease": "NETEASE_COOKIE", "bilibili": "BILIBILI_SESSDATA",
+                "xiaohongshu": "XHS_COOKIE"}
 
 
 def _gh_secret_set(name, value):

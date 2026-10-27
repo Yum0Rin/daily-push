@@ -15,9 +15,49 @@
   - 筛选：点赞 ≥ `min_likes`（默认 5000），默认返回 `limit=10` 条；标题/作者命中广告关键词即丢弃。
   - 时间戳从笔记 ID 前 8 位十六进制解析（`created`），仅用于显示——推荐流会推老笔记，**不套时间窗口**。
   - 推送页新增「📕 小红书推荐」卡片：3:4 竖图 + 右下角点赞角标 + 作者 + 发布时间；汇总栏加一项。
-- `tools/cloud_collect.py`：云端采集显式 `xhs=False`（依赖本机登录态，云端采不了）。
 - `export_site._merge_published()`：已存在的日期也补**缺失字段**（mp / xhs），
   避免云端每天导出一次就把本地采到的小红书/公众号数据从已发布页面上抹掉。
+
+### 新增（同日第二批）
+- **B站首页推荐模块**（`bilibili.BiliRecommendCollector` → `bili_rec` 字段）。
+  - 接口 `x/web-interface/index/top/feed/rcmd`，**不需要 WBI**、需要 SESSDATA；20 条/页，`fresh_idx` 翻页。
+  - 接口自带 `is_followed` 与 `stat.view/like`：只留**未关注** UP，且 `播放 > min_views`、`点赞率 > min_like_ratio`。
+  - 默认 `min_views=50000`、`min_like_ratio=0.07`、`limit=10`、`max_pages=8`（策略在 `settings.json` 的
+    `bilibili.recommend`，设置页「采集参数」可直接改）。
+  - 额外过滤 `goto != av`、`rcmd_reason` 含广告/赞助、作者命中 `bilibili.exclude`；不套时间窗口，按 bvid 跨天去重。
+  - 「关注 UP 动态」保持原样，两个模块互不影响。
+- **小红书上云**（按 B 站同一套方法处理登录）：
+  - `tools/make_cloud_config.py` 读 Secret `XHS_COOKIE`；`.github/workflows/daily-collect.yml` 传入；
+    `cloud_collect.py` 改回 `xhs=True`。
+  - `cloud_secrets.py` / `cookie_repair_cloud.py` 的 `SECRET_NAMES` 加 `xiaohongshu → XHS_COOKIE`；
+    `trigger_cookie_repair.py` 把小红书纳入 cookie 类错误判定。
+  - `cookie_reply.py`：新增 `_normalize_cookie("xiaohongshu")`（整段 Cookie 归一化）、
+    `test_xiaohongshu_cookie()`（调推荐流验证签名+登录态）、`apply_local_config` 支持写回。
+  - 设置页新增「小红书」登录卡片：粘贴**整段** Cookie（含 `a1` + `web_session`）→ 保存并验证 → 可勾「同步云端」。
+  - `XhsCollector` 增加 `a1` 校验：只给 `web_session` 会明确报错（签名需要 a1）。
+- **新模块按日期显示**：小红书 / B站推荐是今天才加的，前端对**没有该字段的历史日期整块隐藏**
+  （卡片 + 汇总统计项都不渲染），避免「0 条」被误解为当天没内容。
+
+### 变更（同日第二批）
+- `storage.py`：新增 `bili_rec` 列；`collector.py` 同时采集 `bilibili` 与 `bili_rec`。
+- `settings_store.py`：新增 `_ratio` 校验器（0~1），`bilibili.recommend` 策略项与默认值。
+- `settings.js`：参数项支持 `float`（点赞率 0.07 不再被 `parseInt` 截断）；`SOURCES` 增加 `field` 字段。
+- `purge_ignored` / `netease_history` / `cover_backfill` / `cloud_collect` 的 `overwrite=True` 调用补
+  `bili_rec`，避免这些路径把新字段写成 None。
+
+### 已知限制
+- **广告判定是启发式**：推荐流返回的 `note_card` 只有 cover/type/title/user/interact_info，
+  没有广告/赞助标记，只能靠标题+作者关键词过滤，会漏判和误杀。
+- B站推荐是**个性化**流，没登录会退化成热门榜；阈值偏严时可能凑不满 10 条（返回实际条数）。
+- 云端小红书依赖 `XHS_COOKIE`；未配置时报「登录态缺失」并触发 cookie-repair 邮件流程。
+
+### 验证
+- 小红书：实测 4 页 79 条中 ≥5k 赞 13 条；接入后单次采集 10 条全部 ≥5k。
+- B站推荐：实测 5 页 89 条 → 未关注 79 → 播放≥10万 63 → 点赞率>10% 仅 7 条
+  （10万+播放的点赞率中位数 4.0%）；改 5万/7% 后单次采集 10 条（4 页、约 3.8 秒）。
+- 静态页导出后无头 Chrome 截图确认：今天 5 个统计项 + 4 个卡片正常；切到 2026-10-26 只剩 3 个统计项，
+  两个新模块整块隐藏。
+- 单元测试 84 项，1 项失败（`test_cloud_secrets` 的 `gh.EXE` vs `gh`，Windows 既有问题，与本次无关）。
 
 ### 变更
 - `storage.py`：新增 `xhs` 列（老库自动 `ALTER TABLE` 迁移）。
@@ -30,7 +70,6 @@
 ### 已知限制
 - **广告判定是启发式**：推荐流返回的 `note_card` 只有 cover/type/title/user/interact_info，
   没有广告/赞助标记，只能靠标题+作者关键词过滤，会漏判和误杀。
-- 云端不采小红书，静态站上云端采集的日期会显示「仅本机采集」。
 
 ### 验证
 - 实测 4 页 79 条中 ≥5k 赞 13 条；接入后单次采集 10 条全部 ≥5k。

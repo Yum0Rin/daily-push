@@ -22,7 +22,7 @@ REPO = os.environ.get("GITHUB_REPOSITORY", "").strip() or "Yum0Rin/daily-push"
 def detect_sources(errs):
     """返回需要修 cookie 的来源列表，如 ['netease', 'bilibili']。"""
     out = []
-    for s in ("netease", "bilibili"):
+    for s in ("netease", "bilibili", "xiaohongshu"):
         if is_cookie_error(s, errs.get(s)):
             out.append(s)
     return out

@@ -1,7 +1,7 @@
 """在 GitHub Actions 云端根据环境变量生成 config.json。
 
 用法：
-    NETEASE_COOKIE=... BILIBILI_SESSDATA=... python tools/make_cloud_config.py
+    NETEASE_COOKIE=... BILIBILI_SESSDATA=... XHS_COOKIE=... python tools/make_cloud_config.py
 
 策略（屏蔽名单 / 阈值 / push_time）来自仓库内跟踪的 ``settings.json``，
 与本地完全同源；只有凭证从 Secrets 注入。公众号/QQ 云端不采集。
@@ -32,6 +32,9 @@ if os.path.exists(settings_path):
 cfg["netease"]["cookie"] = os.environ.get("NETEASE_COOKIE", "")
 cfg["netease"]["base_url"] = "http://localhost:3000"
 cfg["bilibili"]["sessdata"] = os.environ.get("BILIBILI_SESSDATA", "")
+# 小红书云端没有浏览器登录态，必须靠 Secrets 注入整段 Cookie（含 a1 与 web_session）
+cfg.setdefault("xiaohongshu", {})
+cfg["xiaohongshu"]["cookie"] = os.environ.get("XHS_COOKIE", "")
 
 out = os.path.join(BASE_DIR, "config.json")
 with open(out, "w", encoding="utf-8") as f:

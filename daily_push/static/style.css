@@ -80,6 +80,13 @@ header {
 .dp-grid button.selected { background: var(--accent); color: #fff; font-weight: 700; }
 .dp-grid button.selected.weekend { color: #fff; }
 .dp-grid button.out { visibility: hidden; }
+/* 站点 2026-08-07 上线：之前的日期标灰、不可点 */
+.dp-grid button:disabled,
+.dp-grid button.before-launch {
+  color: var(--muted); opacity: .38; cursor: default;
+  background: none; font-weight: 400;
+}
+.dp-grid button:disabled:hover { background: none; }
 main { max-width: 880px; margin: 0 auto; padding: 20px; }
 .summary {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr));
@@ -193,6 +200,13 @@ button.stat .value { margin-top: 4px; }
 /* 小红书：竖图 3:4，封面右下角叠点赞数 */
 .cardgrid.xhs .gthumb { aspect-ratio: 3 / 4; position: relative; }
 .cardgrid.xhs .gtitle { min-height: 2.8em; }
+.cardgrid .gthumb { position: relative; }
+.cardgrid .rec-views {
+  position: absolute; left: 6px; bottom: 6px;
+  padding: 1px 7px; border-radius: 20px;
+  background: rgba(0, 0, 0, .55); color: #fff;
+  font-size: 11px; line-height: 1.6;
+}
 .cardgrid .xhs-likes {
   position: absolute; right: 6px; bottom: 6px;
   padding: 1px 7px; border-radius: 20px;

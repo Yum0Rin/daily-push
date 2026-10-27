@@ -60,14 +60,14 @@ def _merge_published(storage, days):
             continue
         if storage.has(d):
             row = storage.get(d) or {}
-            patch = {k: fields.get(k) for k in ("mp", "xhs")
+            patch = {k: fields.get(k) for k in ("mp", "xhs", "bili_rec")
                      if not row.get(k) and fields.get(k)}
             if patch:
                 storage.save(d, **patch)
             continue
         storage.save(d, netease=fields.get("netease"),
                      bilibili=fields.get("bilibili"), mp=fields.get("mp"),
-                     xhs=fields.get("xhs"))
+                     xhs=fields.get("xhs"), bili_rec=fields.get("bili_rec"))
 
 
 def merge_remote_history(storage, cfg):
@@ -94,7 +94,8 @@ def export_site(config_path=None, merge_remote=True):
     for d in storage.list_dates():
         row = storage.get(d)
         if row:
-            days[d] = {k: row.get(k) for k in ("netease", "bilibili", "mp", "xhs")}
+            days[d] = {k: row.get(k) for k in
+                       ("netease", "bilibili", "bili_rec", "mp", "xhs")}
     storage.close()
 
     with open(os.path.join(BASE_DIR, "templates", "index.html"), encoding="utf-8") as f:

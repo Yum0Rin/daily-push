@@ -8,16 +8,21 @@ const els = {
   summary: $("summary"),
   songs: $("songs"),
   ups: $("ups"),
+  biliRecList: $("biliRecList"),
   xhsList: $("xhsList"),
   mpList: $("mpList"),
   cardMusic: $("card-music"),
   cardBili: $("card-bili"),
+  cardBiliRec: $("card-bilirec"),
   cardXhs: $("card-xhs"),
   cardMp: $("card-mp"),
   emptyState: $("emptyState"),
   collectBtn: $("collectBtn"),
   collectMsg: $("collectMsg"),
 };
+
+// 站点 2026-08-07 才上线：这之前的日期没有任何数据，日期选择器里标灰且不可点
+const MIN_DATE = "2026-08-07";
 
 function localDateStr() {
   const d = new Date();
@@ -180,8 +185,10 @@ function renderBili(data, hasDay) {
 function renderXhs(data, hasDay) {
   const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
   const list = Array.isArray(data) ? data.filter((n) => !n.hidden) : [];
-  els.cardXhs.style.display = hasDay ? "" : "none";
-  if (!hasDay) return;
+  // 小红书模块是 2026-10-27 才加的：历史日期没有这个字段就整块不显示
+  const hasData = data !== undefined && data !== null;
+  els.cardXhs.style.display = hasDay && hasData ? "" : "none";
+  if (!hasDay || !hasData) return;
   if (isErr) {
     els.xhsList.innerHTML = errBlock("xhs", data.error);
     return;
@@ -207,6 +214,50 @@ function renderXhs(data, hasDay) {
           <div class="gmeta">
             <span class="author">${icon} ${esc(n.author)}</span>
             ${n.created ? `<span class="time">${esc(fmtCreated(n.created))}</span>` : ""}
+          </div>
+        </div>
+      </li>`;
+  }).join("");
+}
+
+function fmtViews(n) {
+  const v = Number(n) || 0;
+  if (v >= 100000000) return (v / 100000000).toFixed(1).replace(/\.0$/, "") + "亿";
+  if (v >= 10000) return (v / 10000).toFixed(1).replace(/\.0$/, "") + "万";
+  return String(v);
+}
+
+function renderBiliRec(data, hasDay) {
+  const isErr = data && typeof data === "object" && !Array.isArray(data) && data.error;
+  const list = Array.isArray(data) ? data.filter((u) => !u.hidden) : [];
+  // 模块是 2026-10-27 才加的：该日没有这个字段（历史日期）就整块不显示，
+  // 否则别人会看到「B站推荐 0」而以为当天没内容。
+  const hasData = data !== undefined && data !== null;
+  els.cardBiliRec.style.display = hasDay && hasData ? "" : "none";
+  if (!hasDay || !hasData) return;
+  if (isErr) {
+    els.biliRecList.innerHTML = errBlock("bilibili", data.error);
+    return;
+  }
+  if (list.length === 0) {
+    els.biliRecList.innerHTML =
+      `<div class="module-note">🔥 今日暂无符合条件的推荐（未关注 + 播放量/点赞率达标）。</div>`;
+    return;
+  }
+  els.biliRecList.innerHTML = list.map((u) => {
+    const pic = (u.pic || "").replace(/^http:/, "https:");
+    const pct = ((Number(u.ratio) || 0) * 100).toFixed(1);
+    return `
+      <li class="gcard">
+        <a class="gthumb" href="${esc(u.url)}" target="_blank" rel="noopener">
+          ${pic ? `<img src="${esc(pic)}" loading="lazy" onerror="this.remove()">` : `<span class="gthumb-ph">🔥</span>`}
+          <span class="rec-views">▶ ${esc(fmtViews(u.views))}</span>
+        </a>
+        <div class="ginfo">
+          <a class="gtitle" href="${esc(u.url)}" target="_blank" rel="noopener">${esc(u.title)}</a>
+          <div class="gmeta">
+            ${u.author ? `<span class="author">${esc(u.author)}</span>` : ""}
+            <span class="time">♥ ${pct}%</span>
           </div>
         </div>
       </li>`;
@@ -252,6 +303,7 @@ function render(data) {
   const hasDay = !!data;
   renderMusic(data && data.netease, hasDay);
   renderBili(data && data.bilibili, hasDay);
+  renderBiliRec(data && data.bili_rec, hasDay);
   renderXhs(data && data.xhs, hasDay);
   renderArticles(data && data.mp, hasDay);
 
@@ -263,9 +315,12 @@ function render(data) {
 
 function renderSummary(data) {
   const shown = (x) => (Array.isArray(x) ? x.filter((i) => !i.hidden).length : 0);
+  // 当天没有这个字段（模块上线前的历史日期）就不显示对应统计项
+  const present = (x) => x !== undefined && x !== null;
   const n = shown(data.netease);
   const mp = shown(data.mp);
   const bili = shown(data.bilibili);
+  const rec = shown(data.bili_rec);
   const xhs = shown(data.xhs);
   const stat = (target, label, val) => `
     <button class="stat" data-target="${target}"${val ? "" : " disabled"}>
@@ -274,7 +329,8 @@ function renderSummary(data) {
   els.summary.innerHTML =
     stat("card-music", "🎵 推荐歌曲", n) +
     stat("card-bili", "👀 up动态", bili) +
-    stat("card-xhs", "📕 小红书", xhs) +
+    (present(data.bili_rec) ? stat("card-bilirec", "🔥 B站推荐", rec) : "") +
+    (present(data.xhs) ? stat("card-xhs", "📕 小红书", xhs) : "") +
     stat("card-mp", "📰 公众号推文", mp);
 }
 
@@ -286,11 +342,12 @@ async function loadDay(date) {
   const d = await api("/api/day/" + date);
   const hasRow = d && typeof d === "object"
     && (d.netease !== undefined || d.bilibili !== undefined || d.mp !== undefined
-        || d.xhs !== undefined);
+        || d.xhs !== undefined || d.bili_rec !== undefined);
   render(hasRow ? d : null);
 }
 
 function selectDate(ymd) {
+  if (ymd && ymd < MIN_DATE) return;
   currentDate = ymd;
   els.datePicker.value = ymd;
   const btn = document.getElementById("dpButton");
@@ -342,12 +399,14 @@ function buildDatePicker() {
     for (let d = 1; d <= days; d++) {
       const ymd = `${view.y}-${String(view.mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const wd = (first.getDay() + d - 1) % 7;
+      const beforeLaunch = ymd < MIN_DATE;
       const cls = [
         ymd === currentDate ? "selected" : "",
         ymd === todayStr ? "today" : "",
         wd === 0 || wd === 6 ? "weekend" : "",
+        beforeLaunch ? "before-launch" : "",
       ].filter(Boolean).join(" ");
-      body += `<button type="button" data-day="${d}" class="${cls}">${d}</button>`;
+      body += `<button type="button" data-day="${d}" class="${cls}"${beforeLaunch ? " disabled" : ""}>${d}</button>`;
     }
     grid.innerHTML = head + body;
   }
@@ -401,7 +460,9 @@ function shiftDate(days) {
   const y = dt.getFullYear();
   const mm = String(dt.getMonth() + 1).padStart(2, "0");
   const dd = String(dt.getDate()).padStart(2, "0");
-  selectDate(`${y}-${mm}-${dd}`);
+  const next = `${y}-${mm}-${dd}`;
+  if (next < MIN_DATE) return;  // 站点上线前没有数据
+  selectDate(next);
 }
 
 async function api(path, opts) {

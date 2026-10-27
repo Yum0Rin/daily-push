@@ -74,6 +74,13 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True, xhs
             result["bilibili"] = BiliCollector(cfg).collect(exclude_urls=pushed_bili)
         except BiliError as e:
             result["bilibili"] = {"error": str(e)}
+        # 首页推荐（未关注 + 播放/点赞率达标）。推荐流会推老视频，不做时间窗口过滤。
+        from .sources.bilibili import BiliRecommendCollector
+        pushed_rec = storage.pushed_urls("bili_rec", exclude_date=today.isoformat())
+        try:
+            result["bili_rec"] = BiliRecommendCollector(cfg).collect(exclude_urls=pushed_rec)
+        except BiliError as e:
+            result["bili_rec"] = {"error": str(e)}
 
     # Xiaohongshu recommended feed (点赞阈值 + 广告启发式过滤，只本地可采)
     if xhs:
@@ -125,7 +132,8 @@ def collect_once(config_path=None, netease=True, bilibili=True, wechat=True, xhs
                  netease=result.get("netease"),
                  bilibili=result.get("bilibili"),
                  mp=result.get("mp"),
-                 xhs=result.get("xhs"))
+                 xhs=result.get("xhs"),
+                 bili_rec=result.get("bili_rec"))
     storage.close()
     return result
 

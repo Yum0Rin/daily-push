@@ -41,6 +41,7 @@
 - 策略：`push_time`(HH:MM，兼容保留，本地已不定时)、`max_songs`、
   `netease.{max_comments,max_favorites,reserve}`、
   `bilibili.{exclude,recent_days,max_videos,feed_pages,reserve}`、
+  `bilibili.recommend.{min_views,min_like_ratio,limit,max_pages}`、
   `wechat.{exclude_keywords,notify_keywords,important_biz,max_articles,mp_cutoff_hour,reserve}`、
   `xiaohongshu.{min_likes,max_pages,ad_keywords,exclude_keywords}`。
 - 数量上限 `max_songs` / `max_videos` / `max_articles` 为 **0 表示不限**（只影响之后采集，不改历史）。

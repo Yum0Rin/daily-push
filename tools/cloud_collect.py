@@ -66,6 +66,7 @@ def _seed_published(storage, days):
             bilibili=fields.get("bilibili"),
             mp=fields.get("mp"),
             xhs=fields.get("xhs"),
+            bili_rec=fields.get("bili_rec"),
         )
 
 
@@ -77,9 +78,9 @@ def main():
     _seed_published(storage, _published_days())
     storage.close()
 
-    # 小红书依赖本机浏览器登录态，云端不采集（已发布的本地数据由 export 的
-    # merge_remote 保留，不会被云端的空值覆盖）。
-    r = collect_once(netease=True, bilibili=True, wechat=False, xhs=False)
+    # 小红书云端靠 XHS_COOKIE（整段 Cookie，含 a1 + web_session）采集；
+    # 缺 Cookie 会返回「登录态缺失」错误，触发 cookie-repair 邮件流程。
+    r = collect_once(netease=True, bilibili=True, wechat=False, xhs=True)
     errs = {k: v.get("error") for k, v in r.items()
             if isinstance(v, dict) and "error" in v}
     print("collect errors:", errs)

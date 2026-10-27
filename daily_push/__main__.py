@@ -16,7 +16,7 @@ def main():
     result = collect_once(netease=netease, bilibili=bilibili, wechat=wechat, xhs=xhs)
     print("=" * 40)
     print("saved push_date:", result.get("push_date"))
-    for k in ("netease", "bilibili", "xhs", "mp"):
+    for k in ("netease", "bilibili", "bili_rec", "xhs", "mp"):
         if k in result:
             item = result[k]
             if isinstance(item, dict) and "error" in item:

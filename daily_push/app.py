@@ -60,6 +60,10 @@ def _normalize(source, value):
         return (value or "").strip()
 
 
+# 各平台凭证在 config.json 里的字段名
+_CRED_FIELDS = {"netease": "cookie", "bilibili": "sessdata", "xiaohongshu": "cookie"}
+
+
 def create_app(config_path=None, settings_path=None):
     app = Flask(__name__)
     app.config["SETTINGS_TOKEN"] = secrets.token_urlsafe(32)
@@ -188,6 +192,7 @@ def create_app(config_path=None, settings_path=None):
                 "push_time": cfg.get("push_time", "08:30"),
                 "bilibili_configured": bool(cfg.get("bilibili", {}).get("sessdata")),
                 "netease_configured": bool(cfg.get("netease", {}).get("cookie")),
+                "xiaohongshu_configured": bool(cfg.get("xiaohongshu", {}).get("cookie")),
             },
         })
 
@@ -214,15 +219,17 @@ def create_app(config_path=None, settings_path=None):
         body = request.get_json(silent=True) or {}
         updates = body.get("secrets") or {}
         normalized = {}
-        for source in ("netease", "bilibili"):
-            if source in updates:
-                value = updates[source]
-                if isinstance(value, dict):
-                    value = value.get("cookie" if source == "netease" else "sessdata")
-                if value:
-                    normalized[source] = (
-                        {"cookie": _normalize(source, value)} if source == "netease"
-                        else {"sessdata": _normalize(source, value)})
+        for source, field in _CRED_FIELDS.items():
+            if source not in updates:
+                continue
+            value = updates[source]
+            if isinstance(value, dict):
+                value = value.get(field)
+            if not value:
+                continue
+            cleaned = _normalize(source, value)
+            if cleaned:
+                normalized[source] = {field: cleaned}
         try:
             save_secrets(normalized, config_path)
         except SettingsError as e:
@@ -234,7 +241,7 @@ def create_app(config_path=None, settings_path=None):
         body = request.get_json(silent=True) or {}
         source = body.get("source")
         value = _normalize(source, body.get("value") or "")
-        if source not in ("netease", "bilibili"):
+        if source not in _CRED_FIELDS:
             return jsonify({"error": "未知来源"}), 400
         if not value:
             return jsonify({"ok": False, "detail": "未填写凭证"})
@@ -277,6 +284,9 @@ def create_app(config_path=None, settings_path=None):
                 elif source == "bilibili":
                     value = (cfg.get("bilibili") or {}).get("sessdata") or ""
                     base = ""
+                elif source == "xiaohongshu":
+                    value = (cfg.get("xiaohongshu") or {}).get("cookie") or ""
+                    base = ""
                 else:
                     continue
                 if not value:
@@ -310,6 +320,8 @@ def create_app(config_path=None, settings_path=None):
                 v = (cfg.get("netease") or {}).get("cookie") or ""
             elif s == "bilibili":
                 v = (cfg.get("bilibili") or {}).get("sessdata") or ""
+            elif s == "xiaohongshu":
+                v = (cfg.get("xiaohongshu") or {}).get("cookie") or ""
             else:
                 continue
             if v:

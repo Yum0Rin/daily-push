@@ -1,7 +1,10 @@
-"""Bilibili 关注动态采集.
+"""Bilibili 采集：关注动态 + 首页推荐.
 
-通过「关注动态」接口 (x/polymer/web-dynamic/v1/feed/all?type=video) 一次拉取
-最近投稿的视频（标题/链接/UP名/发布时间），再按窗口过滤，无需逐个访问 UP 空间。
+关注动态：通过「关注动态」接口 (x/polymer/web-dynamic/v1/feed/all?type=video)
+一次拉取最近投稿的视频（标题/链接/UP名/发布时间），再按窗口过滤，无需逐个访问 UP 空间。
+
+首页推荐：通过 (x/web-interface/index/top/feed/rcmd) 拉个性化推荐流，接口自带
+``is_followed`` 与 ``stat.view/like``，可按「未关注 + 播放量 + 点赞率」筛选。
 
 Requires a logged-in SESSDATA cookie (stored in config.json).
 """
@@ -157,3 +160,95 @@ class BiliCollector:
             if self.max_videos and i >= self.max_videos:
                 e["hidden"] = True
         return entries
+
+
+class BiliRecommendCollector(BiliCollector):
+    """首页推荐流：只留「没关注 + 播放量够 + 点赞率够」的视频。
+
+    推荐流不按时间排序（会推老视频），所以**不做时间窗口过滤**，
+    跨天去重按已推 URL（bvid 固定，可直接用）。
+    """
+
+    RCMD_URL = "https://api.bilibili.com/x/web-interface/index/top/feed/rcmd"
+
+    def __init__(self, cfg):
+        super().__init__(cfg)
+        r = (cfg.get("bilibili") or {}).get("recommend") or {}
+        self.min_views = int(r.get("min_views", 50000))
+        self.min_like_ratio = float(r.get("min_like_ratio", 0.07))
+        self.limit = int(r.get("limit", 10))
+        self.max_pages = int(r.get("max_pages", 8))
+        self.interval = float(r.get("request_interval", 1.2))
+
+    def _rcmd_page(self, idx):
+        data = self._get(self.RCMD_URL, params={
+            "fresh_type": 4, "ps": 20, "fresh_idx": idx, "fresh_idx_1h": idx,
+            "feed_version": "V8", "homepage_ver": 1, "brush": 0,
+        })
+        return (data.get("data") or {}).get("item") or []
+
+    @staticmethod
+    def _reason_text(item):
+        return str(((item.get("rcmd_reason") or {}).get("content")) or "")
+
+    def _to_entry(self, it):
+        """按「未关注 + 播放量 + 点赞率 + 屏蔽词」判定单条推荐；不通过返回 None。"""
+        if it.get("goto") != "av":
+            return None
+        bvid = it.get("bvid")
+        if not bvid:
+            return None
+        if int(it.get("is_followed") or 0) != 0:
+            return None
+        stat = it.get("stat") or {}
+        views, likes = int(stat.get("view") or 0), int(stat.get("like") or 0)
+        if views <= self.min_views:
+            return None
+        ratio = likes / views if views else 0
+        if ratio <= self.min_like_ratio:
+            return None
+        reason = self._reason_text(it)
+        if "广告" in reason or "赞助" in reason:
+            return None
+        author = (it.get("owner") or {}).get("name", "")
+        if self._is_excluded(author):
+            return None
+        pic = it.get("pic") or ""
+        if pic.startswith("http://"):
+            pic = "https://" + pic[len("http://"):]
+        return {
+            "title": it.get("title", ""),
+            "url": f"https://www.bilibili.com/video/{bvid}",
+            "author": author,
+            "bvid": bvid,
+            "created": int(it.get("pubdate") or 0),
+            "duration": int(it.get("duration") or 0),
+            "views": views,
+            "likes": likes,
+            "ratio": round(ratio, 4),
+            "pic": pic,
+        }
+
+    def collect(self, exclude_urls=None):
+        if not self.sessdata:
+            raise BiliError("bilibili sessdata not configured")
+        exclude_urls = set(exclude_urls or ())
+        out, seen = [], set()
+        for idx in range(1, max(1, self.max_pages) + 1):
+            for it in self._rcmd_page(idx):
+                bvid = it.get("bvid")
+                if not bvid or bvid in seen:
+                    continue
+                seen.add(bvid)
+                url = f"https://www.bilibili.com/video/{bvid}"
+                if url in exclude_urls:
+                    continue
+                entry = self._to_entry(it)
+                if not entry:
+                    continue
+                out.append(entry)
+                if len(out) >= self.limit:
+                    return out
+            if idx < self.max_pages:
+                time.sleep(self.interval)
+        return out

@@ -63,6 +63,7 @@ def purge(storage, cfg):
                          bilibili=row.get("bilibili") or None,
                          mp=row.get("mp") or None,
                          xhs=row.get("xhs") or None,
+                         bili_rec=row.get("bili_rec") or None,
                          overwrite=True)
     return removed
 

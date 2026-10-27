@@ -15,7 +15,8 @@ import shutil
 
 from . import proc
 
-SECRET_NAMES = {"netease": "NETEASE_COOKIE", "bilibili": "BILIBILI_SESSDATA"}
+SECRET_NAMES = {"netease": "NETEASE_COOKIE", "bilibili": "BILIBILI_SESSDATA",
+                "xiaohongshu": "XHS_COOKIE"}
 
 
 def _gh_exe():

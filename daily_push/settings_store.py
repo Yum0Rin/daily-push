@@ -77,6 +77,15 @@ def _hhmm(value, path):
     return f"{int(m.group(1)):02d}:{m.group(2)}"
 
 
+def _ratio(value, path):
+    """0~1 之间的比例（点赞率），接受 int/float，拒绝 bool。"""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise SettingsError(f"{path} 必须是数字")
+    if not (0 <= value <= 1):
+        raise SettingsError(f"{path} 需在 0~1 之间（如 0.07 表示 7%）")
+    return float(value)
+
+
 def _enum(options):
     def check(value, path):
         if value not in options:
@@ -103,6 +112,12 @@ POLICY_SPEC = {
         "max_videos": _int(0, 500),
         "feed_pages": _int(1, 10),
         "reserve": _int(0, 20),
+        "recommend": {
+            "min_views": _int(0, 1000000000),
+            "min_like_ratio": _ratio,
+            "limit": _int(1, 100),
+            "max_pages": _int(1, 20),
+        },
     },
     "wechat": {
         "exclude_keywords": _str_list,
@@ -236,6 +251,12 @@ def _apply_defaults(cfg):
     cfg["netease"].setdefault("mode", "api")
     cfg.setdefault("bilibili", {})
     cfg["bilibili"].setdefault("up_ids", [])
+    cfg["bilibili"].setdefault("recommend", {})
+    rec = cfg["bilibili"]["recommend"]
+    rec.setdefault("min_views", 50000)
+    rec.setdefault("min_like_ratio", 0.07)
+    rec.setdefault("limit", 10)
+    rec.setdefault("max_pages", 8)
     cfg.setdefault("qq", {})
     cfg["qq"].setdefault("accounts", [])
     cfg["qq"].setdefault("important_groups", [])
@@ -336,8 +357,10 @@ def secrets_view(config_path=None):
     email = cfg.get("email") or {}
     site = cfg.get("site") or {}
     github = cfg.get("github") or {}
+    xhs = cfg.get("xiaohongshu") or {}
     cookie = netease.get("cookie") or ""
     sessdata = bilibili.get("sessdata") or ""
+    xhs_cookie = xhs.get("cookie") or ""
     return {
         "netease": {
             "mode": netease.get("mode") or "api",
@@ -348,6 +371,10 @@ def secrets_view(config_path=None):
         "bilibili": {
             "sessdata_configured": bool(sessdata),
             "sessdata_masked": mask(sessdata),
+        },
+        "xiaohongshu": {
+            "cookie_configured": bool(xhs_cookie),
+            "cookie_masked": mask(xhs_cookie),
         },
         "email_configured": bool(email.get("smtp_user") and email.get("smtp_pass")),
         "site_repo": site.get("repo") or "",

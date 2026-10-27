@@ -42,6 +42,39 @@ Cookie 失效时（`api` 模式）：报错邮件主题会带 `ref=日期-来源
 **封面 / 隐藏缓冲**：`pic` 统一规范成 `https://`（否则 https 页面或 CSP 会拦截 http 图）；
 额外多取 `netease.reserve`（默认 3）条并标 `"hidden": true` 作**隐藏缓冲**，被忽略/过滤后可回填，前端不显示。
 
+## B站首页推荐 (sources/bilibili.py 的 `BiliRecommendCollector`) → `bili_rec` 字段
+
+数组，每项（一条视频）：
+```json
+{
+  "title": "视频标题",
+  "url": "https://www.bilibili.com/video/BVxxx",
+  "author": "UP名",
+  "bvid": "BVxxx",
+  "created": 1793084368,
+  "duration": 2682,
+  "views": 361374,          // stat.view
+  "likes": 92871,           // stat.like
+  "ratio": 0.2571,          // likes / views
+  "pic": "封面 URL（统一 https）"
+}
+```
+
+接口 `GET x/web-interface/index/top/feed/rcmd`（`fresh_type=4&ps=20&fresh_idx=N`），
+个性化首页推荐流，20 条/页，`fresh_idx` 递增翻页。**不需要 WBI 签名**，但需要 SESSDATA。
+接口自带 `is_followed` 和 `stat.view/like`，所以「未关注」和「点赞率」都是本地算，不用额外请求。
+
+筛选（策略存 `settings.json` 的 `bilibili.recommend`）：
+- `min_views`（默认 50000）：播放量下限，`>` 比较。
+- `min_like_ratio`（默认 0.07）：点赞率下限（`likes/views`），`>` 比较。
+- `limit`（默认 10）：返回条数。
+- `max_pages`（默认 8）：最多翻几页；凑不够就返回实际条数（每页间隔 1.2s）。
+- 额外过滤：`goto != "av"`（直播/番剧）、`rcmd_reason.content` 含「广告/赞助」、
+  作者命中 `bilibili.exclude`（与关注动态共用同一份屏蔽名单）。
+
+**不按时间过滤**：推荐流会推老视频，跨天去重按 bvid（URL 固定）。
+与「关注 UP 动态」是两个独立模块（`bilibili` / `bili_rec`），互不影响。
+
 ## B站关注UP (sources/bilibili.py) → `bilibili` 字段
 
 数组，每项（一条视频）：
@@ -129,10 +162,13 @@ config 中的 `qq` 段与 wechat 群消息相关键已移除。历史数据仍�
 由纯 Python 的 [`xhshow`](https://pypi.org/project/xhshow/) 生成（**不再依赖浏览器执行 JS**）。
 
 登录态来源（按顺序）：
-1. `config.json` 的 `xiaohongshu.cookie`（完整 Cookie 串，需含 `web_session=`）；
+1. `config.json` 的 `xiaohongshu.cookie`（**整段 Cookie**，必须同时含 `a1=` 与 `web_session=`；
+   只有 `web_session` 生成不了签名）——云端就用这条，值来自 GitHub Secret `XHS_COOKIE`；
 2. 本机 **Firefox** 配置目录里已登录的小红书 Cookie —— 只读打开 `cookies.sqlite`
    （`mode=ro&immutable=1`），不复制文件、不外传。
 
+> 本地：`config.json` 没配 Cookie 时自动回落到 Firefox。
+> 云端（GitHub Actions）：没有浏览器，**必须**配 `XHS_COOKIE`，否则报「登录态缺失」并触发 cookie-repair 邮件流程。
 > 只支持 Firefox 自动读取：Chrome 127+ 的 Cookie 是 App-Bound 加密，进程外无法解密。
 
 筛选与配置：

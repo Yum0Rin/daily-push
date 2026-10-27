@@ -90,6 +90,52 @@ def _cookies_from_firefox():
     return {}
 
 
+def probe_login(cookie_str):
+    """用给定 Cookie 打一次推荐流，验证登录态是否可用。返回 ``(ok, detail)``。
+
+    设置页「检测/保存并验证」与邮件 cookie-repair 共用，保证两边判定一致。
+    """
+    try:
+        from xhshow import Xhshow
+    except ImportError:
+        return False, "缺少依赖 xhshow（pip install xhshow）"
+    text = str(cookie_str or "").strip()
+    jar = _parse_cookie_string(text) if "=" in text else {"web_session": text}
+    if not jar.get("web_session"):
+        return False, "Cookie 里没有 web_session"
+    if not jar.get("a1"):
+        return False, "Cookie 里没有 a1（签名需要 a1，请粘贴整段 Cookie）"
+    payload = {
+        "cursor_score": "", "num": 10, "refresh_type": 1, "note_index": 0,
+        "unread_begin_note_id": "", "unread_end_note_id": "", "unread_note_count": 0,
+        "category": "homefeed_recommend", "search_key": "", "need_num": 10,
+        "image_scenes": ["FD_PRV_WEBP", "FD_WM_WEBP"],
+    }
+    headers = {
+        "User-Agent": _UA,
+        "Content-Type": "application/json;charset=UTF-8",
+        "Accept": "application/json, text/plain, */*",
+        "Origin": "https://www.xiaohongshu.com",
+        "Referer": "https://www.xiaohongshu.com/explore",
+    }
+    try:
+        headers.update(Xhshow().sign_headers_post(FEED_URI, jar, payload=payload))
+        r = requests.post(API_HOST + FEED_URI, json=payload, headers=headers,
+                          cookies=jar, timeout=20)
+        data = r.json()
+    except Exception as e:
+        return False, f"小红书验证请求失败：{e}"
+    code = data.get("code")
+    if code == 0:
+        n = len(((data.get("data") or {}).get("items")) or [])
+        return True, f"小红书登录正常（推荐流返回 {n} 条）"
+    if code == -101:
+        return False, "小红书未登录：Cookie 无效或已过期"
+    if code == 300011:
+        return False, "小红书账号被风控（300011），请先在浏览器正常使用一段时间"
+    return False, f"小红书验证失败（code={code}：{data.get('msg')}）"
+
+
 class XhsCollector:
     def __init__(self, cfg):
         try:
@@ -116,6 +162,8 @@ class XhsCollector:
             return self._cookies
         if "web_session=" in self.cookie_str:
             jar = _parse_cookie_string(self.cookie_str)
+            if not jar.get("a1"):
+                raise XhsError("小红书 Cookie 缺少 a1（签名需要），请粘贴浏览器里的整段 Cookie")
         else:
             jar = _cookies_from_firefox()
         if not jar.get("web_session"):
